@@ -1,0 +1,93 @@
+name: Build APK from HTML
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Create Android Project Structure
+        run: |
+          mkdir -p android-app/app/src/main/assets
+          mkdir -p android-app/app/src/main/java/com/example/htmlapp
+          mkdir -p android-app/app/src/main/res/layout
+          mkdir -p android-app/app/src/main/res/mipmap-hdpi
+
+          # Copy user web files to assets
+          cp -r index.html android-app/app/src/main/assets/ || true
+          # Copy other assets if exist (css, js, images)
+          cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
+          cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
+          cp -r assets/ android-app/app/src/main/assets/ 2>/dev/null || true
+
+          # Create AndroidManifest.xml
+          cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="HTML App"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          아이콘 카테고리 설정
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # Create MainActivity.java
+          cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
+          package com.example.htmlapp;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import androidx.appcompat.app.AppCompatActivity;
+
+          public class MainActivity extends AppCompatActivity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  webView.setWebViewClient(new WebViewClient());
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF
+
+          # Create build.gradle files minimal setup for building
+          # (Simplified wrapper task or standard gradle build template can be inserted here)

@@ -34,11 +34,15 @@ jobs:
         cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
         cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # Create AndroidManifest.xml (Simplified)
+        # Create AndroidManifest.xml (Camera permission added)
         cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+            
             <application
                 android:allowBackup="true"
                 android:label="WMS App"
@@ -56,35 +60,57 @@ jobs:
         </manifest>
         EOF
 
-        # Create strings.xml to avoid theme/label warnings
+        # Create strings.xml
         cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">WMS App</string>
         </resources>
         EOF
 
-        # Create MainActivity.java
+        # Create MainActivity.java (With runtime camera permission request and file chooser support)
         cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         package com.example.htmlapp;
+        
+        import android.Manifest;
+        import android.content.pm.PackageManager;
         import android.os.Bundle;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
+        import androidx.annotation.NonNull;
         import androidx.appcompat.app.AppCompatActivity;
+        import androidx.core.app.ActivityCompat;
+        import androidx.core.content.ContextCompat;
 
         public class MainActivity extends AppCompatActivity {
             private WebView mywebView;
+            private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
+
             @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
+                
+                // Request Camera Permission at runtime
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
+                }
+
                 mywebView = new WebView(this);
                 WebSettings webSettings = mywebView.getSettings();
                 webSettings.setJavaScriptEnabled(true);
                 webSettings.setDomStorageEnabled(true);
+                webSettings.setAllowFileAccess(true);
                 mywebView.setWebViewClient(new WebViewClient());
                 mywebView.loadUrl("file:///android_asset/index.html");
                 setContentView(mywebView);
             }
+
+            @Override
+            public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                // Handle permission result if needed
+            }
+
             @Override
             public void onBackPressed() {
                 if (mywebView.canGoBack()) {

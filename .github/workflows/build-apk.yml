@@ -18,8 +18,10 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Gradle
+    - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
 
     - name: Create Android Project Structure
       run: |
@@ -122,7 +124,7 @@ jobs:
                 mavenCentral()
             }
             dependencies {
-                classpath 'com.android.tools.build:gradle:8.1.0'
+                classpath 'com.android.tools.build:gradle:8.1.1'
             }
         }
         allprojects {
@@ -136,10 +138,10 @@ jobs:
         # Create gradle.properties
         echo "android.useAndroidX=true" > android-app/gradle.properties
 
-    - name: Generate Gradle Wrapper & Build APK
+    - name: Build APK with Gradle
       working-directory: android-app
       run: |
-        gradle wrapper --gradle-version 8.3
+        gradle wrapper --gradle-version 8.4
         chmod +x gradlew
         ./gradlew assembleDebug
 

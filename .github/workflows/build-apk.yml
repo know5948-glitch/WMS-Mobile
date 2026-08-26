@@ -27,23 +27,21 @@ jobs:
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
-        mkdir -p android-app/app/src/main/res/layout
-        mkdir -p android-app/app/src/main/res/mipmap-hdpi
+        mkdir -p android-app/app/src/main/res/values
 
         # Copy web files to assets
         cp -r index.html android-app/app/src/main/assets/ || true
         cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
         cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # Create AndroidManifest.xml
+        # Create AndroidManifest.xml (Simplified)
         cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
             <application
                 android:allowBackup="true"
-                android:icon="@mipmap/ic_launcher"
                 android:label="WMS App"
-                android:roundIcon="@mipmap/ic_launcher"
                 android:supportsRtl="true"
                 android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                 <activity
@@ -56,6 +54,13 @@ jobs:
                 </activity>
             </application>
         </manifest>
+        EOF
+
+        # Create strings.xml to avoid theme/label warnings
+        cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
+        <resources>
+            <string name="app_name">WMS App</string>
+        </resources>
         EOF
 
         # Create MainActivity.java

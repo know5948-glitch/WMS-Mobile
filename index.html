@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PEPTRON 실시간 재고실사 및 QR 스캐너 모바일 WMS</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+        body { 
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .screen-transition {
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out;
+        }
+        /* Toggle Switch CSS */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #4f46e5;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4f46e5;
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* Glassmorphism & Safe area padding */
+        .glass-header {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+        }
+        .safe-bottom {
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 1.25rem));
+        }
+
+        /* QR Scanner Camera Overlay styling */
+        #qr-camera-container video {
+            width: 100% !important;
+            height: auto !important;
+            border-radius: 1.25rem;
+            object-fit: cover;
+        }
+    </style>
+
+    <!-- HTML5 QR Code Scanner Engine Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body class="bg-slate-100 h-[100dvh] w-screen overflow-hidden flex flex-col select-none text-slate-800">
+
+    <!-- 1. 로그인 화면 오버레이 -->
+    <div id="screenLogin" class="fixed inset-0 bg-slate-900 flex flex-col justify-between p-6 z-[100] screen-transition">
+        <div class="flex-1 flex flex-col justify-center items-center gap-7 max-w-sm mx-auto w-full">
+            <div class="bg-[#609ec2] py-6 px-5 rounded-2xl shadow-xl shadow-[#609ec2]/20 w-full flex items-center justify-center">
+                <svg viewBox="0 0 330 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-auto max-w-[160px]">
+                    <g stroke="white" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 25 10 V 50 M 25 10 H 42 C 50 10 50 30 42 30 H 25" />
+                        <path d="M 88 10 H 68 V 50 H 88 M 68 30 H 84" />
+                        <path d="M 110 10 V 50 M 110 10 H 127 C 135 10 135 30 127 30 H 110" />
+                        <path d="M 145 10 H 175 M 160 10 V 50" />
+                        <path d="M 192 10 V 50 M 192 10 H 209 C 217 10 217 30 209 30 H 192 M 205 30 L 219 50" />
+                        <rect x="236" y="10" width="25" height="40" rx="4" fill="none" stroke="white" stroke-width="7.5" />
+                        <path d="M 282 50 V 10 L 305 50 V 10" />
+                    </g>
+                </svg>
+            </div>
+            
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-white tracking-tight">원자재/소모품 모바일 WMS</h2>
+                <p class="text-xs text-slate-400 mt-1">GMP 품질통제 및 현장 QR 스캐너 통합 시스템</p>
+            </div>
+
+            <div class="flex flex-col gap-3.5 w-full">
+                <div>
+                    <label class="text-[11px] text-slate-400 font-bold block mb-1">사용자 계정 (Email)</label>
+                    <input type="email" id="loginId" placeholder="예: worker@peptron.com" class="w-full px-4 py-3.5 bg-slate-800 text-white border border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 font-mono">
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-400 font-bold block mb-1">비밀번호 (Password)</label>
+                    <input type="password" id="loginPw" placeholder="비밀번호 입력" class="w-full px-4 py-3.5 bg-slate-800 text-white border border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500" onkeydown="if(event.key === 'Enter') handleLogin()">
+                </div>
+                
+                <div class="flex items-center justify-between px-1">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="saveIdToggle" class="w-4 h-4 text-blue-500 rounded border-slate-600 bg-slate-800 focus:ring-blue-500">
+                        <span class="text-[11px] text-slate-400 font-semibold select-none">아이디 기억하기</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="autoLoginToggle" class="w-4 h-4 text-blue-500 rounded border-slate-600 bg-slate-800 focus:ring-blue-500">
+                        <span class="text-[11px] text-blue-400 font-bold select-none">자동 로그인</span>
+                    </label>
+                </div>
+
+                <p id="loginError" class="text-xs text-red-400 font-semibold text-center hidden mt-1"></p>
+            </div>
+
+            <div class="w-full flex flex-col gap-2">
+                <button onclick="handleLogin()" id="btnLoginSubmit" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg shadow-blue-500/10 text-sm">
+                    안전 인증 모바일 로그인
+                </button>
+                <button onclick="handleAutoLogin()" class="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-xl transition text-sm border border-slate-600">
+                    테스트 계정으로 접속
+                </button>
+            </div>
+        </div>
+        <div class="text-center text-[10px] text-slate-500">
+            © PEPTRON CO., LTD. All Rights Reserved.
+        </div>
+    </div>
+
+    <!-- 2. 메인 품목 리스트 및 KPI 대시보드 화면 -->
+    <div id="screenList" class="flex-1 flex flex-col h-full w-full screen-transition opacity-0 pointer-events-none translate-x-full bg-slate-50 relative">
+        <header class="bg-white border-b border-slate-200 px-4 py-3.5 flex items-center justify-between shrink-0 shadow-sm z-10">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                <span id="mobileUserBadge" class="text-xs font-bold text-slate-600">대기중</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="cloudSyncStatus" class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">실시간 연동중</span>
+                <button onclick="handleLogout()" class="text-xs text-red-500 font-bold border border-red-200 bg-red-50/50 px-2.5 py-1 rounded-lg hover:bg-red-100 transition">로그아웃</button>
+            </div>
+        </header>
+
+        <div class="bg-white p-3 border-b border-slate-200 flex flex-col gap-2 shrink-0 z-10">
+            
+            <!-- 📊 4-Stage Status KPI Grid (시험대기 / 시험중 / 적합 / 부적합) -->
+            <div class="grid grid-cols-4 gap-2 my-1">
+                <div class="bg-slate-50 rounded-xl p-2 border border-slate-200 text-center">
+                    <span class="text-[10px] font-bold text-slate-500 block truncate"><i class="fa-solid fa-hourglass-half"></i> 시험대기</span>
+                    <span id="stat-시험대기" class="text-sm font-black text-slate-800 font-mono">0</span>
+                </div>
+                <div class="bg-amber-50/60 rounded-xl p-2 border border-amber-200 text-center">
+                    <span class="text-[10px] font-bold text-amber-600 block truncate"><i class="fa-solid fa-microscope"></i> 시험중</span>
+                    <span id="stat-시험중" class="text-sm font-black text-amber-800 font-mono">0</span>
+                </div>
+                <div class="bg-emerald-50/60 rounded-xl p-2 border border-emerald-200 text-center">
+                    <span class="text-[10px] font-bold text-emerald-600 block truncate"><i class="fa-solid fa-circle-check"></i> 적합</span>
+                    <span id="stat-적합" class="text-sm font-black text-emerald-800 font-mono">0</span>
+                </div>
+                <div class="bg-red-50/60 rounded-xl p-2 border border-red-200 text-center">
+                    <span class="text-[10px] font-bold text-red-600 block truncate"><i class="fa-solid fa-triangle-exclamation"></i> 부적합</span>
+                    <span id="stat-부적합" class="text-sm font-black text-red-800 font-mono">0</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="openAuditScreen()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md shadow-indigo-500/20 flex justify-center items-center gap-1.5">
+                    <i class="fa-solid fa-clipboard-check text-sm"></i>
+                    입고번호(Lot)별 실사 모드
+                </button>
+                <button onclick="openScanner()" class="px-3.5 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs shadow-md flex justify-center items-center gap-1.5">
+                    <i class="fa-solid fa-qrcode text-sm text-blue-400"></i>
+                    QR 스캔
+                </button>
+            </div>
+
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <input type="text" id="menuSearchInput" oninput="filterMenu()" placeholder="품목명, 코드, Lot, 입고번호 검색..." class="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <span class="absolute left-3 top-3 text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <button onclick="clearSearch()" class="absolute right-3 top-2.5 text-slate-400 p-0.5 rounded-full hover:bg-slate-200">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                </div>
+                <button onclick="toggleSidebarSort()" id="btnSortSidebar" class="px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-1 transition shrink-0">
+                    코드 ↑
+                </button>
+            </div>
+
+            <div class="flex gap-1.5 overflow-x-auto py-1 custom-scrollbar shrink-0">
+                <button onclick="filterCategory('ALL')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm">전체</button>
+                <button onclick="filterCategory('자재')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border">자재</button>
+                <button onclick="filterCategory('주성분')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border">주성분</button>
+                <button onclick="filterCategory('부형제')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border">부형제</button>
+                <button onclick="filterCategory('반제품')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border">반제품</button>
+                <button onclick="filterCategory('완제품')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border">완제품</button>
+                <button onclick="filterCategory('소모품')" class="filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border">소모품</button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5 pb-32" id="itemMenuContainer"></div>
+
+        <!-- Floating Central Quick Scan Button -->
+        <div class="fixed bottom-6 left-0 right-0 flex justify-center z-30 pointer-events-none safe-bottom">
+            <button onclick="openScanner()" class="pointer-events-auto bg-slate-900 hover:bg-black text-white w-16 h-16 rounded-full flex flex-col justify-center items-center gap-0.5 shadow-[0_10px_25px_rgba(0,0,0,0.35)] active:scale-95 transition-transform border-4 border-white">
+                <i class="fa-solid fa-qrcode text-xl text-blue-400"></i>
+                <span class="text-[9px] font-bold">스캔</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. 실시간 재고 실사(Audit) 모드 화면 -->
+    <div id="screenAudit" class="flex-1 flex flex-col h-[100dvh] w-full screen-transition opacity-0 pointer-events-none translate-x-full fixed inset-0 z-50 bg-slate-100">
+        <header class="bg-indigo-600 px-4 py-3.5 flex items-center justify-between shrink-0 shadow-md z-10 text-white">
+            <button onclick="closeAuditScreen()" class="flex items-center gap-1 text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+                메인으로
+            </button>
+            <h3 class="text-sm font-bold">입고번호별 현장 재고실사</h3>
+            <div class="w-16"></div>
+        </header>
+        
+        <div class="bg-white p-4 border-b border-slate-200 shrink-0 shadow-sm z-10">
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-xs font-bold text-slate-600">Lot별 실사 점검 진행률</span>
+                <span id="auditProgressText" class="text-sm font-black text-indigo-600 font-mono">0 / 0</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                <div id="auditProgressBar" class="bg-indigo-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2 pb-32" id="auditListContainer"></div>
+    </div>
+
+    <!-- 4. 자재 상세 및 Lot별 출고(불출) 등록 화면 -->
+    <div id="screenDetail" class="flex-1 flex flex-col h-[100dvh] w-full screen-transition opacity-0 pointer-events-none translate-x-full fixed inset-0 z-40 bg-slate-100">
+        <header class="bg-white border-b border-slate-200 px-4 py-3.5 flex items-center justify-between shrink-0 shadow-sm z-10">
+            <button onclick="navigateBack()" class="flex items-center gap-1.5 text-xs text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-200">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+                이전으로
+            </button>
+            <h3 class="text-sm font-bold text-slate-800">자재/소모품 상세 및 불출 관리</h3>
+            <div class="w-16"></div>
+        </header>
+
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white shadow-md shrink-0 z-10" id="detailHeaderBox">
+            <div class="flex items-center gap-2">
+                <span id="detailCategory" class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full tracking-wider"></span>
+                <span id="detailGrade" class="hidden text-[10px] font-bold bg-red-500/80 px-2 py-0.5 rounded-full tracking-wider border border-white/20"></span>
+                <span id="detailCode" class="text-xs font-mono font-bold text-blue-200"></span>
+            </div>
+            <h2 id="detailItemName" class="text-lg font-bold truncate mt-1">-</h2>
+            <div class="flex justify-between items-end mt-4 pt-3 border-t border-white/10">
+                <div class="text-left">
+                    <span class="text-[10px] block opacity-70">안전재고 기준</span>
+                    <span id="detailSafetyStock" class="text-sm font-bold font-mono">0</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] block opacity-90 font-bold text-blue-100">현재 실 가용잔고</span>
+                    <span id="detailTotalStock" class="text-2xl font-black font-mono text-white">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 pb-64" id="lotStatusContainer"></div>
+    </div>
+
+    <!-- 5. 카메라 QR 스캐너 풀스크린 모달 -->
+    <div id="screenScanner" class="fixed inset-0 z-[120] bg-black hidden flex-col transition-transform duration-300 translate-y-full">
+        <div class="flex justify-between items-center p-5 pt-8 bg-black/60 absolute top-0 left-0 right-0 z-10">
+            <h2 class="text-white font-bold text-base flex items-center gap-2">
+                <i class="fa-solid fa-qrcode text-blue-400"></i>
+                <span>WMS 바코드 / QR 스캔</span>
+            </h2>
+            <button onclick="closeScanner()" class="w-9 h-9 bg-white/20 rounded-full text-white flex justify-center items-center active:scale-95">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+        </div>
+        
+        <!-- Camera Video Feed Container -->
+        <div class="flex-1 flex items-center justify-center relative w-full h-full bg-black p-4">
+            <div id="qr-camera-container" class="w-full max-w-md"></div>
+        </div>
+        
+        <div class="p-6 bg-black/90 text-center absolute bottom-0 left-0 right-0 safe-bottom">
+            <p class="text-white/80 text-xs font-medium">라벨에 인쇄된 WMS QR 코드를 사각형 중앙에 맞춰주세요.</p>
+        </div>
+    </div>
+
+    <!-- 🚨 6. GMP 품질 통제 & FEFO 경고 모달 -->
+    <div id="interlockModal" class="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div id="interlockBox" class="bg-white rounded-3xl p-6 max-w-sm w-full border-4 shadow-2xl text-center space-y-4">
+            <div id="interlockIconBg" class="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl">
+                <i id="interlockIcon" class="fa-solid fa-ban"></i>
+            </div>
+            <div>
+                <h3 id="interlockTitle" class="text-lg font-black text-slate-900">GMP 인터락 차단</h3>
+                <p id="interlockSubtitle" class="text-xs text-slate-500 font-bold mt-1">승인되지 않은 자재 상태입니다</p>
+            </div>
+            <div id="interlockMsg" class="p-3.5 rounded-2xl text-xs font-semibold text-left space-y-1 bg-slate-100 border border-slate-200 whitespace-pre-line">
+            </div>
+            <div class="pt-2">
+                <button onclick="closeInterlockModal()" class="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-md">
+                    확인 및 닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Message -->
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur text-white px-5 py-3 rounded-full text-xs font-bold shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none z-[190] whitespace-nowrap">
+        메시지
+    </div>
+
+    <!-- Embedded Data Storage Fallback -->
+    <script id="embeddedDataStorage">
+        window.AUDIT_DATA = {}; 
+        
+        window.MASTER_LEDGER_DATA = {
+            "M00001": {
+                name: "바이알-((22*45)-8R 백색5ml)", category: "자재", safetyStock: 5600, mfg: "Gerresheimer",
+                records: [
+                    { date: "2026-01-12", slipNo: "M2601-001", packUnit: 350, packQty: 112, income: 39200, actualIncome: 38850, outcome: 0, price: 120, amount: 4662000, batch: "V2601-002", testNo: "MA26-011201", mfgDate: "2026-01-10", expiryDate: "2029-01-10", vendor: "삼덕에프지", testStatus: "적합" }
+                ]
+            }
+        };
+
+        window.CONSUMABLE_DATA = {
+            "C00001": { grade: "B", name: "비멸균 일회용 헤어캡", unit: "EA", price: 50, safetyStock: 500, stock: 161, records: [] },
+            "C00034": { grade: "A", name: "0.2µm 5inch cartridge air filter", unit: "EA", price: 85000, safetyStock: 10, stock: 15, records: [
+                { date: "2026-08-05", slipNo: "C2608-001", batch: "FL-202608", expiryDate: "2028-08-05", type: "OUT", qty: 1, price: 85000, worker: "hblee" },
+                { date: "2026-08-01", slipNo: "C2608-001", batch: "FL-202608", expiryDate: "2028-08-05", type: "IN", qty: 16, price: 85000, worker: "hblee" }
+            ] }
+        };
+    </script>
+
+    <!-- App Firebase & Realtime State Controller -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const MY_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDd0qS7-Nj3xRVjtckq1ZXynlSM0c0z7Cw",
+            authDomain: "peptron-wms.firebaseapp.com",
+            projectId: "peptron-wms",
+            storageBucket: "peptron-wms.firebasestorage.app",
+            messagingSenderId: "640501972572",
+            appId: "1:640501972572:web:49ccd5fe56a84cb4bab099",
+        };
+
+        let app, auth, db;
+        try {
+            app = initializeApp(MY_FIREBASE_CONFIG);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            window.firebaseActive = true;
+        } catch (error) {
+            console.error("Firebase 초기화 에러:", error);
+        }
+
+        window.firebaseAuthLogin = async function(email, password) {
+            return await signInWithEmailAndPassword(auth, email, password);
+        };
+        
+        window.firebaseAuthLogout = async function() {
+            if (auth) await signOut(auth);
+        };
+
+        window.startRealtimeSync = function() {
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const ledgerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'ledger', 'master');
+                
+                onSnapshot(ledgerDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const remoteData = docSnap.data();
+                        
+                        if (remoteData.ledgerData) {
+                            Object.keys(window.MASTER_LEDGER_DATA).forEach(key => delete window.MASTER_LEDGER_DATA[key]);
+                            Object.assign(window.MASTER_LEDGER_DATA, remoteData.ledgerData);
+                        }
+
+                        if (remoteData.consumableData) {
+                            if (!window.CONSUMABLE_DATA) window.CONSUMABLE_DATA = {};
+                            Object.keys(window.CONSUMABLE_DATA).forEach(key => delete window.CONSUMABLE_DATA[key]);
+                            Object.assign(window.CONSUMABLE_DATA, remoteData.consumableData);
+                        }
+                        
+                        if (remoteData.auditData) window.AUDIT_DATA = remoteData.auditData;
+                        else window.AUDIT_DATA = {};
+
+                        if (remoteData.auditLogs) {
+                            window.AUDIT_TRAIL_LOGS = remoteData.auditLogs;
+                        }
+
+                        if (window.currentActiveScreen === "screenList") window.renderMenu();
+                        if (window.currentActiveScreen === "screenAudit") window.renderAuditList();
+                        if (window.currentActiveScreen === "screenDetail" && window.currentActiveItemCode) {
+                            window.showItemDetailScreen(window.currentActiveItemCode);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("실시간 연동 실패:", error);
+            }
+        };
+
+        window.pushFullDataToCloud = async function() {
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const ledgerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'ledger', 'master');
+                const docSnap = await getDoc(ledgerDocRef);
+                let fullDoc = docSnap.exists() ? docSnap.data() : {};
+                
+                fullDoc.ledgerData = window.MASTER_LEDGER_DATA;
+                fullDoc.consumableData = window.CONSUMABLE_DATA;
+                fullDoc.auditData = window.AUDIT_DATA;
+                fullDoc.auditLogs = window.AUDIT_TRAIL_LOGS || [];
+                fullDoc.lastUpdatedBy = window.currentUser + " (Mobile)";
+                fullDoc.updatedAt = Date.now();
+
+                await setDoc(ledgerDocRef, fullDoc);
+            } catch (error) {
+                console.error("클라우드 업로드 에러:", error);
+                throw error;
+            }
+        };
+
+        window.updateFirebaseAuditData = async function() {
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const ledgerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'ledger', 'master');
+                await setDoc(ledgerDocRef, { auditData: window.AUDIT_DATA }, { merge: true });
+            } catch (error) {
+                console.error("실사 업데이트 에러:", error);
+            }
+        };
+    </script>
+
+    <!-- 메인 UI 동작 & GMP 통제 스크립트 -->
+    <script>
+        window.currentUser = "";
+        window.currentActiveScreen = "screenLogin";
+        window.currentActiveItemCode = "";
+        window.AUDIT_TRAIL_LOGS = [];
+        
+        let selectedCategoryFilter = "ALL";
+        let sidebarSortDirection = "asc";
+        let html5QrCode = null;
+
+        // 🎵 Web Audio API 비프음 신세사이저 (GMP 알림 피드백)
+        window.playBeep = function(type = 'success') {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'success') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    osc.start(); osc.stop(ctx.currentTime + 0.15);
+                } else if (type === 'warning') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(587, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    osc.start(); osc.stop(ctx.currentTime + 0.3);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(160, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    osc.start(); osc.stop(ctx.currentTime + 0.45);
+                }
+            } catch (e) {}
+        };
+
+        // ⛔ GMP 전용 인터락 모달 제어
+        window.showInterlockModal = function(title, subtitle, msgHtml, type = 'error') {
+            const modal = document.getElementById('interlockModal');
+            const box = document.getElementById('interlockBox');
+            const iconBg = document.getElementById('interlockIconBg');
+            const icon = document.getElementById('interlockIcon');
+
+            document.getElementById('interlockTitle').innerText = title;
+            document.getElementById('interlockSubtitle').innerText = subtitle;
+            document.getElementById('interlockMsg').innerHTML = msgHtml;
+
+            if (type === 'error') {
+                box.className = "bg-white rounded-3xl p-6 max-w-sm w-full border-4 border-red-500 shadow-2xl text-center space-y-4";
+                iconBg.className = "w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl bg-red-100 text-red-600";
+                icon.className = "fa-solid fa-ban";
+            } else if (type === 'warning') {
+                box.className = "bg-white rounded-3xl p-6 max-w-sm w-full border-4 border-amber-500 shadow-2xl text-center space-y-4";
+                iconBg.className = "w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl bg-amber-100 text-amber-600";
+                icon.className = "fa-solid fa-triangle-exclamation";
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeInterlockModal = function() {
+            const modal = document.getElementById('interlockModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        };
+
+        window.showToast = function(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+        };
+
+        window.writeAuditLog = function(actionType, code, detailMsg) {
+            const now = new Date();
+            const timestamp = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+            window.AUDIT_TRAIL_LOGS.unshift({ timestamp: timestamp, user: window.currentUser || "UNKNOWN", action: actionType, code: code, details: detailMsg });
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedEmail = localStorage.getItem('peptron_mobile_saved_email');
+            const savedPw = localStorage.getItem('peptron_mobile_saved_pw');
+            const isAutoLoginEnabled = localStorage.getItem('peptron_mobile_auto_login') === 'true';
+
+            if (savedEmail) {
+                document.getElementById('loginId').value = savedEmail;
+                const toggle = document.getElementById('saveIdToggle');
+                if (toggle) toggle.checked = true;
+            }
+
+            if (savedPw) {
+                document.getElementById('loginPw').value = savedPw;
+            }
+
+            if (isAutoLoginEnabled) {
+                const autoToggle = document.getElementById('autoLoginToggle');
+                if (autoToggle) autoToggle.checked = true;
+
+                setTimeout(() => {
+                    if (savedEmail && savedPw) {
+                        handleLogin();
+                    } else {
+                        handleAutoLogin();
+                    }
+                }, 300);
+            }
+        });
+
+        // 📷 카메라 QR 스캐너 오픈 & 바코드 인식 로직
+        window.openScanner = function() {
+            document.getElementById('screenScanner').classList.remove('hidden');
+            void document.getElementById('screenScanner').offsetWidth;
+            document.getElementById('screenScanner').classList.remove('translate-y-full');
+
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-camera-container");
+            }
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    window.playBeep('success');
+                    window.closeScanner();
+                    window.processScannedData(decodedText);
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                window.showToast("카메라 권한을 허용해주시거나 모바일 기기에서 시도해주세요.");
+                window.closeScanner();
+            });
+        };
+
+        window.closeScanner = function() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                }).catch(err => console.log(err));
+            }
+            const scr = document.getElementById('screenScanner');
+            scr.classList.add('translate-y-full');
+            setTimeout(() => { scr.classList.add('hidden'); }, 300);
+        };
+
+        window.processScannedData = function(text) {
+            const rawText = text.trim();
+            const query = rawText.toUpperCase();
+            let foundCode = null;
+            let foundTarget = null;
+
+            // 1. QR 패턴 분석: "CODE_SLIPNO" 또는 "CODE_BATCH" 형태
+            if (query.includes('_')) {
+                const parts = query.split('_');
+                const possibleCode = parts[0].trim();
+                const possibleTarget = parts.slice(1).join('_').trim();
+                
+                if (window.MASTER_LEDGER_DATA[possibleCode] || window.CONSUMABLE_DATA[possibleCode]) {
+                    foundCode = possibleCode;
+                    foundTarget = possibleTarget;
+                }
+            }
+
+            // 2. 전체 DB 탐색 (자재코드, Lot번호, 입고번호 단독 스캔 시)
+            if (!foundCode) {
+                const allDatabases = [window.MASTER_LEDGER_DATA, window.CONSUMABLE_DATA];
+                
+                for (const db of allDatabases) {
+                    if (!db) continue;
+                    for (const code of Object.keys(db)) {
+                        const item = db[code];
+                        if (code.toUpperCase() === query) {
+                            foundCode = code;
+                            break;
+                        }
+                        if (item.records) {
+                            for (const r of item.records) {
+                                const batch = (r.batch || "").toUpperCase();
+                                const slipNo = (r.slipNo || "").toUpperCase();
+                                if (batch && batch === query) {
+                                    foundCode = code; foundTarget = r.batch; break;
+                                }
+                                if (slipNo && slipNo === query) {
+                                    foundCode = code; foundTarget = r.slipNo; break;
+                                }
+                                if ((batch && query.includes(batch)) || (slipNo && query.includes(slipNo))) {
+                                    foundCode = code; foundTarget = r.slipNo || r.batch; break;
+                                }
+                            }
+                        }
+                        if (foundCode) break;
+                    }
+                    if (foundCode) break;
+                }
+            }
+
+            if (foundCode) {
+                // 스캔된 특정 자재의 품질 상태 검사 (원자재 전용. 소모품은 기본적으로 적합)
+                let scannedQualityStatus = "적합";
+                const isConsumable = !!window.CONSUMABLE_DATA[foundCode];
+                
+                if (foundTarget && !isConsumable) {
+                    const item = window.MASTER_LEDGER_DATA[foundCode];
+                    if (item && item.records) {
+                        const targetUpper = foundTarget.trim().toUpperCase();
+                        const matchedRec = item.records.find(r => 
+                            (r.slipNo && r.slipNo.trim().toUpperCase() === targetUpper) ||
+                            (r.batch && r.batch.trim().toUpperCase() === targetUpper)
+                        );
+                        if (matchedRec && matchedRec.testStatus) {
+                            scannedQualityStatus = matchedRec.testStatus;
+                        }
+                    }
+                }
+
+                window.showItemDetailScreen(foundCode, foundTarget);
+
+                // 품질 상태에 따른 즉시 경고창 (모달 & 비프음) 출력
+                if (scannedQualityStatus === '부적합') {
+                    window.playBeep('error');
+                    window.showInterlockModal(
+                        '⛔ 부적합 자재 라벨 스캔',
+                        '사용 및 공정 투입이 엄격히 금지된 자재입니다!',
+                        `자재코드: <span class="font-mono text-blue-600 font-bold">${foundCode}</span>\n스캔 대상: <span class="font-mono font-bold text-red-600">${foundTarget || '전체'}</span>\n현재 품질 상태: <span class="text-red-600 font-extrabold bg-red-100 px-2 py-0.5 rounded border border-red-200">부적합 (Rejected)</span>\n\n해당 자재는 불량/부적합 판정을 받았으므로 절대 공정에 투입하거나 출고할 수 없으며 즉시 격리 수거하시기 바랍니다.`,
+                        'error'
+                    );
+                    window.writeAuditLog("SCAN_REJECTED_WARNING", foundCode, `[스캔 경고] 부적합 자재 라벨 스캔 감지됨 [대상: ${foundTarget}]`);
+                } else if (scannedQualityStatus === '시험중' || scannedQualityStatus === '검사중' || scannedQualityStatus === '시험대기' || scannedQualityStatus === '대기') {
+                    window.playBeep('warning');
+                    window.showInterlockModal(
+                        '⚠️ 품질 시험중/대기 자재 스캔',
+                        'QA 적격 승인 전 자재입니다.',
+                        `자재코드: <span class="font-mono text-blue-600 font-bold">${foundCode}</span>\n스캔 대상: <span class="font-mono font-bold text-amber-700">${foundTarget || '전체'}</span>\n현재 품질 상태: <span class="text-amber-800 font-extrabold bg-amber-100 px-2 py-0.5 rounded border border-amber-200">${scannedQualityStatus}</span>\n\n현재 QA 시험 진행/대기 중이므로 적격 승인(Released) 되기 전에는 불출 출고할 수 없습니다.`,
+                        'warning'
+                    );
+                    window.writeAuditLog("SCAN_TESTING_WARNING", foundCode, `[스캔 경고] 시험중/대기 상태 자재 라벨 스캔 감지됨 [상태: ${scannedQualityStatus}, 대상: ${foundTarget}]`);
+                } else {
+                    if (foundTarget) {
+                        window.showToast(`[${foundCode}] 스캔 대상 Lot (${foundTarget}) 조회 완료`);
+                    } else {
+                        window.showToast(`[${foundCode}] 품목 조회 완료`);
+                    }
+                }
+            } else {
+                window.playBeep('error');
+                window.showToast(`DB에서 스캔 코드 [${text}] 정보를 찾을 수 없습니다.`);
+            }
+        };
+
+        window.handleAutoLogin = function() {
+            const btnEl = document.getElementById('btnLoginSubmit');
+            btnEl.innerText = "자동 로그인 처리 중...";
+            
+            window.currentUser = "admin";
+            document.getElementById('mobileUserBadge').innerText = `admin 사원`;
+            
+            if (typeof window.startRealtimeSync === 'function') window.startRealtimeSync();
+
+            setTimeout(() => {
+                window.writeAuditLog("LOGIN", "-", `모바일 WMS 테스트 계정 자동 로그인 성공`);
+                renderMenu();
+                navigateToScreen("screenList");
+                btnEl.innerText = "안전 인증 모바일 로그인";
+            }, 500);
+        };
+
+        async function handleLogin() {
+            const emailInput = document.getElementById('loginId').value.trim();
+            const pwInput = document.getElementById('loginPw').value;
+            const errorEl = document.getElementById('loginError');
+            const btnEl = document.getElementById('btnLoginSubmit');
+            
+            errorEl.classList.add('hidden');
+            if (!emailInput || !pwInput) {
+                errorEl.innerText = "⚠️ 이메일과 비밀번호를 모두 입력해 주세요.";
+                errorEl.classList.remove('hidden'); return;
+            }
+
+            try {
+                btnEl.innerText = "안전 인증 처리 중...";
+                btnEl.disabled = true;
+
+                const userCredential = await window.firebaseAuthLogin(emailInput, pwInput);
+                
+                const saveIdChecked = document.getElementById('saveIdToggle').checked;
+                const autoLoginChecked = document.getElementById('autoLoginToggle').checked;
+
+                if (saveIdChecked) localStorage.setItem('peptron_mobile_saved_email', emailInput);
+                else localStorage.removeItem('peptron_mobile_saved_email');
+
+                if (autoLoginChecked) {
+                    localStorage.setItem('peptron_mobile_saved_email', emailInput);
+                    localStorage.setItem('peptron_mobile_saved_pw', pwInput);
+                    localStorage.setItem('peptron_mobile_auto_login', 'true');
+                } else {
+                    localStorage.setItem('peptron_mobile_auto_login', 'false');
+                }
+
+                window.currentUser = userCredential.user.email.split('@')[0];
+                document.getElementById('mobileUserBadge').innerText = `${window.currentUser} 사원`;
+                btnEl.innerText = "Firebase 실시간 연동중...";
+
+                if (typeof window.startRealtimeSync === 'function') window.startRealtimeSync();
+
+                setTimeout(() => {
+                    window.writeAuditLog("LOGIN", "-", `사원 [${window.currentUser}] 모바일 WMS 안전 인증 로그인 성공`);
+                    renderMenu();
+                    navigateToScreen("screenList");
+                    btnEl.innerText = "안전 인증 모바일 로그인";
+                    btnEl.disabled = false;
+                }, 600);
+
+            } catch (error) {
+                errorEl.innerText = "⚠️ 계정 정보가 올바르지 않거나 등록되지 않은 이메일입니다.";
+                errorEl.classList.remove('hidden');
+                btnEl.innerText = "안전 인증 모바일 로그인";
+                btnEl.disabled = false;
+            }
+        }
+
+        async function handleLogout() {
+            if(confirm("로그아웃 하시겠습니까?")) {
+                localStorage.setItem('peptron_mobile_auto_login', 'false');
+                window.writeAuditLog("LOGOUT", "-", `사원 [${window.currentUser}] 모바일 WMS 로그아웃 실행`);
+                if (typeof window.pushFullDataToCloud === 'function') {
+                    try { await window.pushFullDataToCloud(); } catch(e){}
+                }
+                if(typeof window.firebaseAuthLogout === 'function') await window.firebaseAuthLogout();
+                location.reload();
+            }
+        }
+
+        function openAuditScreen() {
+            navigateToScreen("screenAudit");
+            renderAuditList();
+        }
+
+        function closeAuditScreen() {
+            navigateToScreen("screenList");
+        }
+
+        function handleAuditToggle(auditKey, isChecked) {
+            const inputEl = document.getElementById(`audit-qty-${auditKey}`);
+            let actualQty = inputEl ? inputEl.value : "";
+            
+            if (!window.AUDIT_DATA) window.AUDIT_DATA = {};
+            window.AUDIT_DATA[auditKey] = { checked: isChecked, actualQty: actualQty, updatedBy: window.currentUser, timestamp: Date.now() };
+            
+            if(typeof window.updateFirebaseAuditData === 'function') window.updateFirebaseAuditData();
+            updateAuditProgressBar();
+            renderAuditList();
+        }
+
+        function handleAuditQtyChange(auditKey, val) {
+            if (window.AUDIT_DATA && window.AUDIT_DATA[auditKey] && window.AUDIT_DATA[auditKey].checked) {
+                window.AUDIT_DATA[auditKey].actualQty = val;
+                window.AUDIT_DATA[auditKey].timestamp = Date.now();
+                if(typeof window.updateFirebaseAuditData === 'function') window.updateFirebaseAuditData();
+            }
+        }
+
+        function updateAuditProgressBar() {
+            let totalLots = 0; let checkedCount = 0;
+            
+            const allKeys = [...Object.keys(window.MASTER_LEDGER_DATA || {}), ...Object.keys(window.CONSUMABLE_DATA || {})];
+            
+            allKeys.forEach(code => {
+                const isConsumable = !!window.CONSUMABLE_DATA[code];
+                const item = isConsumable ? window.CONSUMABLE_DATA[code] : window.MASTER_LEDGER_DATA[code];
+                
+                // B급 소모품은 개별 Lot이 없으므로 제외 (또는 전체를 1건으로 칠 수 있으나 여기선 생략)
+                if (isConsumable && item.grade === 'B') return;
+
+                const receipts = getInventoryFIFOState(code).filter(r => r.remaining > 0);
+                if (receipts.length === 0) {
+                    totalLots++;
+                    const auditKey = `${code}_EMPTY`;
+                    if (window.AUDIT_DATA && window.AUDIT_DATA[auditKey] && window.AUDIT_DATA[auditKey].checked) checkedCount++;
+                } else {
+                    receipts.forEach(rec => {
+                        totalLots++;
+                        const safeSlip = rec.slipNo || 'NO_SLIP';
+                        const auditKey = `${code}_${safeSlip}`;
+                        if (window.AUDIT_DATA && window.AUDIT_DATA[auditKey] && window.AUDIT_DATA[auditKey].checked) checkedCount++;
+                    });
+                }
+            });
+
+            const percent = totalLots === 0 ? 0 : Math.round((checkedCount / totalLots) * 100);
+            document.getElementById('auditProgressText').innerText = `${checkedCount} / ${totalLots} (${percent}%)`;
+            document.getElementById('auditProgressBar').style.width = `${percent}%`;
+            
+            if (percent === 100 && totalLots > 0) {
+                document.getElementById('auditProgressBar').classList.replace('bg-indigo-500', 'bg-emerald-500');
+                document.getElementById('auditProgressText').classList.replace('text-indigo-600', 'text-emerald-600');
+            } else {
+                document.getElementById('auditProgressBar').classList.replace('bg-emerald-500', 'bg-indigo-500');
+                document.getElementById('auditProgressText').classList.replace('text-emerald-600', 'text-indigo-600');
+            }
+        }
+
+        window.renderAuditList = function() {
+            const container = document.getElementById('auditListContainer');
+            if(!container) return;
+            container.innerHTML = "";
+
+            const allKeys = [...Object.keys(window.MASTER_LEDGER_DATA || {}), ...Object.keys(window.CONSUMABLE_DATA || {})];
+            const sortedCodes = allKeys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+            sortedCodes.forEach(code => {
+                const isConsumable = !!window.CONSUMABLE_DATA[code];
+                const item = isConsumable ? window.CONSUMABLE_DATA[code] : window.MASTER_LEDGER_DATA[code];
+                
+                // B급 소모품은 실사에서 개별로 다루지 않음
+                if (isConsumable && item.grade === 'B') return;
+
+                const receipts = getInventoryFIFOState(code).filter(r => r.remaining > 0);
+
+                const itemHeader = document.createElement('div');
+                itemHeader.className = "mt-4 mb-1 px-1 flex items-center gap-2";
+                itemHeader.innerHTML = `<span class="text-[10px] font-bold text-white bg-indigo-500 px-2 py-0.5 rounded shadow-sm">${code}</span> <span class="text-xs font-bold text-slate-700 truncate">${item.name}</span>`;
+                container.appendChild(itemHeader);
+
+                if (receipts.length === 0) {
+                    const auditKey = `${code}_EMPTY`;
+                    const auditInfo = (window.AUDIT_DATA && window.AUDIT_DATA[auditKey]) || {};
+                    const isChecked = auditInfo.checked || false;
+                    const actualQty = auditInfo.actualQty !== undefined ? auditInfo.actualQty : 0;
+                    const updatedBy = auditInfo.updatedBy ? `<span class="text-[9px] text-indigo-500 ml-1">(${auditInfo.updatedBy})</span>` : "";
+
+                    const card = document.createElement('div');
+                    card.className = `bg-white rounded-2xl border ${isChecked ? 'border-indigo-400 bg-indigo-50/30 shadow-md' : 'border-slate-200 shadow-sm'} p-3 transition-all duration-300`;
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-400">전산 잔여 재고 없음 (0)</span>
+                            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in mt-1 shrink-0">
+                                <input type="checkbox" id="audit-toggle-${auditKey}" ${isChecked ? 'checked' : ''} onchange="handleAuditToggle('${auditKey}', this.checked)" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                                <label for="audit-toggle-${auditKey}" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer transition-colors duration-300"></label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                            <span class="text-[10px] text-indigo-600 font-bold">실제 재고 입력 ${updatedBy}</span>
+                            <input type="number" step="any" id="audit-qty-${auditKey}" value="${actualQty}" onchange="handleAuditQtyChange('${auditKey}', this.value)" class="w-20 px-2 py-1.5 border ${isChecked ? 'border-indigo-300 bg-white' : 'border-slate-200 bg-white'} rounded-lg text-sm text-right font-bold font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                    `;
+                    container.appendChild(card);
+                } else {
+                    receipts.forEach(rec => {
+                        const safeSlip = rec.slipNo || 'NO_SLIP';
+                        const auditKey = `${code}_${safeSlip}`;
+                        const auditInfo = (window.AUDIT_DATA && window.AUDIT_DATA[auditKey]) || {};
+                        const isChecked = auditInfo.checked || false;
+                        const actualQty = auditInfo.actualQty !== undefined && auditInfo.actualQty !== "" ? auditInfo.actualQty : rec.remaining;
+                        const updatedBy = auditInfo.updatedBy ? `<span class="text-[9px] text-indigo-500 ml-1">(${auditInfo.updatedBy})</span>` : "";
+
+                        const card = document.createElement('div');
+                        card.className = `bg-white rounded-2xl border ${isChecked ? 'border-indigo-400 bg-indigo-50/30 shadow-md' : 'border-slate-200 shadow-sm'} p-3 transition-all duration-300`;
+                        card.innerHTML = `
+                            <div class="flex justify-between items-start gap-2 mb-2 border-b border-slate-100 pb-2">
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-[10px] font-bold font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 inline-block mb-1">입고번호: ${rec.slipNo || '-'}</span>
+                                    <div class="text-xs text-slate-500 font-mono mt-0.5">Lot: <span class="font-bold text-slate-700">${rec.batch || '-'}</span></div>
+                                </div>
+                                <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in mt-1 shrink-0">
+                                    <input type="checkbox" id="audit-toggle-${auditKey}" ${isChecked ? 'checked' : ''} onchange="handleAuditToggle('${auditKey}', this.checked)" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                                    <label for="audit-toggle-${auditKey}" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer transition-colors duration-300"></label>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 font-bold block mb-0.5">전산 가용 잔고</span>
+                                    <span class="text-sm font-bold font-mono text-slate-600">${formatQty(rec.remaining, code)}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-indigo-600 font-bold block mb-0.5">실제 수량 ${updatedBy}</span>
+                                    <input type="number" step="any" id="audit-qty-${auditKey}" value="${actualQty}" onchange="handleAuditQtyChange('${auditKey}', this.value)" class="w-full px-2 py-1.5 border ${isChecked ? 'border-indigo-300 bg-white' : 'border-slate-200 bg-white'} rounded-lg text-sm text-right font-bold font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors">
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                }
+            });
+            updateAuditProgressBar();
+        }
+
+        function filterMenu() { renderMenu(); }
+        function clearSearch() { document.getElementById('menuSearchInput').value = ""; renderMenu(); }
+        function toggleSidebarSort() { 
+            sidebarSortDirection = sidebarSortDirection === 'asc' ? 'desc' : 'asc'; 
+            const btn = document.getElementById('btnSortSidebar'); 
+            if (btn) btn.innerHTML = sidebarSortDirection === 'asc' ? '코드 ↑' : '코드 ↓'; 
+            renderMenu(); 
+        }
+        
+        function filterCategory(category) {
+            selectedCategoryFilter = category;
+            document.querySelectorAll('.filter-tab-btn').forEach(btn => { btn.className = "filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/50"; });
+            if (event && event.target) event.target.className = "filter-tab-btn shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm shadow-blue-500/10";
+            renderMenu();
+        }
+
+        function formatQty(val, itemCode) {
+            if (val === undefined || val === null || val === '-' || val === '') return '-';
+            const num = parseFloat(val); if (isNaN(num)) return val;
+            
+            let item = window.MASTER_LEDGER_DATA[itemCode];
+            let isConsumable = false;
+            if (!item && window.CONSUMABLE_DATA) {
+                item = window.CONSUMABLE_DATA[itemCode];
+                isConsumable = true;
+            }
+
+            const isDecimal = !isConsumable && (item && (item.category === "주성분" || item.category === "부형제"));
+            if (isDecimal) return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+            return Math.round(num).toLocaleString();
+        }
+
+        // 통합 FIFO 연산 (원자재 + 소모품)
+        function getInventoryFIFOState(itemCode) {
+            let item = window.MASTER_LEDGER_DATA[itemCode];
+            let isConsumable = false;
+            if (!item && window.CONSUMABLE_DATA) {
+                item = window.CONSUMABLE_DATA[itemCode];
+                isConsumable = true;
+            }
+            if (!item || !item.records || item.records.length === 0) return [];
+
+            const isDecimal = !isConsumable && (item.category === "주성분" || item.category === "부형제");
+            const sortedRecords = [...item.records].sort((a, b) => new Date(a.date) - new Date(b.date));
+            let receipts = [];
+            
+            // 입고 수집
+            sortedRecords.forEach(r => { 
+                const incomeAmt = isConsumable ? (r.type === 'IN' ? r.qty : 0) : (r.income || 0);
+                const actualInc = isConsumable ? (r.type === 'IN' ? r.qty : 0) : (r.actualIncome || r.income || 0);
+
+                if (incomeAmt > 0) {
+                    receipts.push({ 
+                        date: r.date, slipNo: r.slipNo || '미기입', batch: r.batch || '-', 
+                        testNo: r.testNo || '-', expiryDate: r.expiryDate || '-', potency: r.potency, 
+                        testStatus: r.testStatus || '적합', actualIncome: actualInc, remaining: actualInc 
+                    }); 
+                }
+            });
+            
+            // 출고 차감
+            sortedRecords.forEach(r => {
+                const outAmtOriginal = isConsumable ? (r.type === 'OUT' ? r.qty : 0) : (r.outcome || 0);
+                if (outAmtOriginal > 0) {
+                    let outAmt = outAmtOriginal; 
+                    const targetSlip = r.slipNo ? r.slipNo.trim() : "";
+                    
+                    if (targetSlip && targetSlip !== "-" && targetSlip !== "미기입") {
+                        for (let i = 0; i < receipts.length; i++) {
+                            if (receipts[i].slipNo === targetSlip && receipts[i].remaining > 0) {
+                                if (receipts[i].remaining >= outAmt) { 
+                                    receipts[i].remaining -= outAmt; 
+                                    if (isDecimal) receipts[i].remaining = Math.round(receipts[i].remaining * 1000) / 1000; 
+                                    outAmt = 0; break; 
+                                } 
+                                else { 
+                                    outAmt -= receipts[i].remaining; 
+                                    if (isDecimal) outAmt = Math.round(outAmt * 1000) / 1000; 
+                                    receipts[i].remaining = 0; 
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 특정 Lot을 못 찾거나 아직 남은 수량이 있으면 오래된 순(FIFO)으로 차감
+                    if (outAmt > 0) {
+                        for (let i = 0; i < receipts.length; i++) {
+                            if (receipts[i].remaining > 0) {
+                                if (receipts[i].remaining >= outAmt) { 
+                                    receipts[i].remaining -= outAmt; 
+                                    if (isDecimal) receipts[i].remaining = Math.round(receipts[i].remaining * 1000) / 1000; 
+                                    outAmt = 0; break; 
+                                } 
+                                else { 
+                                    outAmt -= receipts[i].remaining; 
+                                    if (isDecimal) outAmt = Math.round(outAmt * 1000) / 1000; 
+                                    receipts[i].remaining = 0; 
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const today = new Date();
+            receipts.forEach(rec => { 
+                if (rec.expiryDate && rec.expiryDate !== "-") { 
+                    const expDate = new Date(rec.expiryDate); 
+                    rec.isExpired = !isNaN(expDate.getTime()) && expDate < today; 
+                } else { 
+                    rec.isExpired = false; 
+                } 
+            });
+            return receipts;
+        }
+
+        // 4단계 KPI 통계 업데이트 (시험대기, 시험중, 적합, 부적합 수량 집계) - 원자재 기준
+        function updateDashboardStats() {
+            const counts = { '시험대기': 0, '시험중': 0, '적합': 0, '부적합': 0 };
+
+            Object.keys(window.MASTER_LEDGER_DATA).forEach(code => {
+                const receipts = getInventoryFIFOState(code).filter(r => r.remaining > 0);
+                receipts.forEach(r => {
+                    let st = r.testStatus || '적합';
+                    if (st === '검사중') st = '시험중';
+                    if (st === '대기') st = '시험대기';
+                    if (counts.hasOwnProperty(st)) {
+                        counts[st]++;
+                    } else {
+                        counts['시험대기']++;
+                    }
+                });
+            });
+
+            Object.keys(counts).forEach(key => {
+                const el = document.getElementById(`stat-${key}`);
+                if (el) el.innerText = counts[key].toLocaleString();
+            });
+        }
+
+        window.renderMenu = function() {
+            const container = document.getElementById('itemMenuContainer');
+            if(!container) return;
+            container.innerHTML = "";
+            const searchVal = document.getElementById('menuSearchInput').value.toLowerCase().trim();
+            
+            // 모든 키 결합 (원자재 + 소모품)
+            const allKeys = [...Object.keys(window.MASTER_LEDGER_DATA || {}), ...Object.keys(window.CONSUMABLE_DATA || {})];
+            const sortedCodes = allKeys.sort((a, b) => { 
+                if (sidebarSortDirection === 'asc') return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }); 
+                else return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }); 
+            });
+
+            sortedCodes.forEach(code => {
+                const isConsumable = !!window.CONSUMABLE_DATA[code];
+                const item = isConsumable ? window.CONSUMABLE_DATA[code] : window.MASTER_LEDGER_DATA[code];
+                
+                if (!item) return;
+                
+                const itemCat = isConsumable ? "소모품" : item.category;
+                if (selectedCategoryFilter !== "ALL" && itemCat !== selectedCategoryFilter) return;
+                
+                const safeName = item.name || '';
+                if (!code.toLowerCase().includes(searchVal) && !safeName.toLowerCase().includes(searchVal)) return;
+
+                const receipts = getInventoryFIFOState(code);
+                const isDecimal = !isConsumable && (item.category === "주성분" || item.category === "부형제");
+                
+                let usableStock = 0;
+                if (isConsumable && item.grade === 'B') {
+                    // B급 소모품은 item.stock을 직접 사용
+                    usableStock = item.stock || 0;
+                } else {
+                    usableStock = receipts.reduce((sum, r) => sum + (r.isExpired ? 0 : r.remaining), 0);
+                    if (isDecimal) usableStock = Math.round(usableStock * 1000) / 1000;
+                }
+
+                const isUnderSafety = usableStock < (item.safetyStock || 0);
+
+                let catColor = "bg-slate-100 text-slate-500 border-slate-200";
+                if(itemCat === "반제품") catColor = "bg-purple-50 text-purple-600 border-purple-200";
+                if(itemCat === "완제품") catColor = "bg-indigo-50 text-indigo-600 border-indigo-200";
+                if(itemCat === "소모품") catColor = "bg-sky-50 text-sky-600 border-sky-200";
+
+                const gradeBadge = (isConsumable && item.grade === 'A') ? `<span class="text-[9px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">A급</span>` : '';
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-2xl border border-slate-200 p-4 shadow-sm active:bg-slate-50 transition flex items-center justify-between gap-4 cursor-pointer`;
+                card.onclick = () => window.showItemDetailScreen(code);
+
+                card.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span class="text-[9px] font-bold ${catColor} border px-2 py-0.5 rounded-full">${itemCat}</span>
+                            ${gradeBadge}
+                            <span class="text-xs font-mono font-bold text-blue-600">${code}</span>
+                            ${isUnderSafety ? '<span class="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-md animate-pulse">⚠️ 안전재고 미달</span>' : ''}
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 truncate leading-snug">${safeName}</h3>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="text-[9px] text-slate-400 block font-medium">가용고</span>
+                        <span class="text-base font-extrabold font-mono ${isUnderSafety ? 'text-red-500' : 'text-blue-600'}">${formatQty(usableStock, code)} <span class="text-[10px] font-normal text-slate-400">${item.unit || ''}</span></span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            updateDashboardStats();
+        };
+
+        window.showItemDetailScreen = function(code, filterLotOrSlip = null) {
+            window.currentActiveItemCode = code;
+            navigateToScreen("screenDetail");
+            
+            const isConsumable = !!window.CONSUMABLE_DATA[code];
+            const item = isConsumable ? window.CONSUMABLE_DATA[code] : window.MASTER_LEDGER_DATA[code];
+            if (!item) return;
+
+            let receipts = getInventoryFIFOState(code);
+            const isDecimal = !isConsumable && (item.category === "주성분" || item.category === "부형제");
+            
+            let usableStock = 0;
+            if (isConsumable && item.grade === 'B') {
+                usableStock = item.stock || 0;
+            } else {
+                usableStock = receipts.reduce((sum, r) => sum + (r.isExpired ? 0 : r.remaining), 0);
+                if (isDecimal) usableStock = Math.round(usableStock * 1000) / 1000;
+            }
+
+            document.getElementById('detailCategory').innerText = isConsumable ? "소모품" : item.category; 
+            
+            const gradeBadge = document.getElementById('detailGrade');
+            if (isConsumable) {
+                gradeBadge.innerText = `${item.grade}급`;
+                gradeBadge.classList.remove('hidden');
+            } else {
+                gradeBadge.classList.add('hidden');
+            }
+
+            document.getElementById('detailCode').innerText = code; 
+            document.getElementById('detailItemName').innerText = item.name; 
+            document.getElementById('detailSafetyStock').innerText = (item.safetyStock || 0).toLocaleString(); 
+            document.getElementById('detailTotalStock').innerText = formatQty(usableStock, code);
+
+            // B급 소모품 (단순 차감 모드)
+            if (isConsumable && item.grade === 'B') {
+                document.getElementById('detailHeaderBox').className = "bg-gradient-to-r from-sky-500 to-blue-600 p-4 text-white shadow-md shrink-0 z-10";
+                const container = document.getElementById('lotStatusContainer');
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mt-2">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i class="fa-solid fa-box-open text-blue-500 text-lg"></i>
+                            <h3 class="text-sm font-bold text-slate-800">일반 소모품 (B급) 일괄 출고</h3>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-4">이 소모품은 Lot 추적 없이 수량 기반으로만 즉시 불출됩니다.</p>
+                        
+                        <div class="flex flex-col gap-3">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-bold block mb-1">출고(사용) 수량 <span class="text-blue-500">*</span></label>
+                                <input type="number" id="simple-out-qty" placeholder="수량 입력" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-bold block mb-1">사유 / 비고</label>
+                                <input type="text" id="simple-out-note" placeholder="사용처 등 메모" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button onclick="handleSimpleDispense('${code}')" class="w-full mt-2 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md active:scale-95 transition flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-check"></i> 출고 등록 완료
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // 원자재 또는 A급 소모품 (Lot 기반)
+            document.getElementById('detailHeaderBox').className = "bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white shadow-md shrink-0 z-10";
+            const container = document.getElementById('lotStatusContainer');
+            container.innerHTML = "";
+
+            if (filterLotOrSlip) {
+                const targetUpper = filterLotOrSlip.trim().toUpperCase();
+                const filteredReceipts = receipts.filter(r => 
+                    (r.slipNo && r.slipNo.trim().toUpperCase() === targetUpper) ||
+                    (r.batch && r.batch.trim().toUpperCase() === targetUpper) ||
+                    (r.slipNo && targetUpper.includes(r.slipNo.trim().toUpperCase())) ||
+                    (r.batch && targetUpper.includes(r.batch.trim().toUpperCase()))
+                );
+
+                const filterBanner = document.createElement('div');
+                filterBanner.className = "bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex justify-between items-center shrink-0 mb-1 shadow-sm";
+                filterBanner.innerHTML = `
+                    <div class="flex items-center gap-2 text-xs font-bold text-indigo-900 truncate">
+                        <i class="fa-solid fa-qrcode text-indigo-600"></i>
+                        <span>스캔 지정 Lot: <span class="font-mono text-indigo-700 underline font-black">${filterLotOrSlip}</span></span>
+                    </div>
+                    <button onclick="window.showItemDetailScreen('${code}', null)" class="shrink-0 text-[10px] font-bold bg-indigo-600 text-white px-2.5 py-1 rounded-lg hover:bg-indigo-700 active:scale-95 transition">
+                        전체 Lot 보기
+                    </button>
+                `;
+                container.appendChild(filterBanner);
+
+                if (filteredReceipts.length > 0) {
+                    receipts = filteredReceipts;
+                }
+            }
+
+            receipts.forEach((rec, lotIndex) => {
+                const usedQty = rec.actualIncome - rec.remaining;
+                const isZero = rec.remaining <= 0;
+                let expiryColorClass = "text-slate-500 bg-slate-100 border-slate-200";
+                
+                if (rec.expiryDate && rec.expiryDate !== "-") { 
+                    const expiry = new Date(rec.expiryDate); 
+                    if (!isNaN(expiry.getTime()) && expiry < new Date()) expiryColorClass = "text-red-700 bg-red-50 border-red-200 animate-pulse"; 
+                }
+                
+                const recStatus = rec.testStatus || '적합';
+                let testStatusBadge = `<span class="text-[9px] font-bold ${recStatus === '적합' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : recStatus === '시험중' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} border px-2 py-0.5 rounded-full">${recStatus}</span>`;
+
+                const safeSlipNo = rec.slipNo || 'NO_SLIP';
+                const lotId = `lot-${safeSlipNo.replace(/[^a-zA-Z0-9]/g, '')}-${lotIndex}`;
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300 shrink-0 ${isZero ? 'opacity-60 bg-slate-50/50' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="p-4">
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <div class="flex items-center gap-1.5"><span class="text-xs font-bold font-mono text-slate-800">${rec.slipNo || '-'}</span><span class="text-[9px] text-slate-400 font-mono">${rec.date}</span></div>
+                            <div class="flex items-center gap-1">${testStatusBadge}${isZero ? '<span class="text-[9px] font-bold bg-slate-100 text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">소진</span>' : '<span class="text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">가용</span>'}</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-2">
+                            <div class="text-slate-400">제조번호 (Lot)</div><div class="font-mono font-semibold text-slate-800 text-right">${rec.batch || '-'}</div>
+                            <div class="text-slate-400">시험번호</div><div class="font-mono font-semibold text-slate-800 text-right">${rec.testNo || '-'}</div>
+                            <div class="text-slate-400">유효기간</div><div class="font-mono font-semibold text-slate-800 text-right ${expiryColorClass}">${rec.expiryDate || '-'}</div>
+                        </div>
+                        <div class="flex justify-between items-end mt-4 pt-3 border-t border-slate-100">
+                            <div class="text-left"><span class="text-[10px] block text-slate-400">최초 입고: ${formatQty(rec.actualIncome, code)}</span><span class="text-[10px] block text-red-400 mt-1">총 누적 출고: ${formatQty(usedQty, code)}</span></div>
+                            <div class="text-right"><span class="text-[10px] block text-slate-400">잔여 재고</span><span class="text-base font-extrabold font-mono text-blue-600">${formatQty(rec.remaining, code)}</span></div>
+                        </div>
+
+                        ${!isZero ? `
+                        <!-- 출고 불출 등록 폼 -->
+                        <div class="mt-3 pt-3 border-t border-dashed border-slate-200 flex flex-col gap-2">
+                            <div class="flex gap-2">
+                                <input type="number" step="any" id="out-qty-${lotId}" placeholder="출고수량" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <input type="text" id="out-note-${lotId}" placeholder="사용 사유/비고" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <button onclick="handleLotDispense('${code}', '${rec.slipNo}', '${rec.batch}', '${lotId}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1 active:scale-95">
+                                <i class="fa-solid fa-box-open"></i>
+                                해당 Lot 불출(출고) 등록
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            const bottomSpacer = document.createElement('div');
+            bottomSpacer.className = "h-40 shrink-0 w-full"; 
+            container.appendChild(bottomSpacer);
+        };
+
+        // 🚨 일반 소모품 (B급) 출고 로직
+        window.handleSimpleDispense = async function(code) {
+            const qtyInput = document.getElementById('simple-out-qty');
+            const noteInput = document.getElementById('simple-out-note');
+            
+            const outQty = parseFloat(qtyInput ? qtyInput.value : 0);
+            const note = noteInput ? noteInput.value.trim() : "";
+
+            if (!outQty || outQty <= 0) {
+                window.showToast("⚠️ 출고 수량을 정확히 입력해주세요.");
+                return;
+            }
+
+            const item = window.CONSUMABLE_DATA[code];
+            if (!item) return;
+
+            if (outQty > item.stock) {
+                window.showToast(`⚠️ 출고 수량이 현재 잔고(${item.stock})를 초과합니다.`);
+                return;
+            }
+
+            window.playBeep('success');
+            const todayStr = new Date().toISOString().slice(0, 10);
+            
+            // 잔고 차감 및 기록 추가
+            item.stock -= outQty;
+            item.records.push({
+                date: todayStr,
+                type: 'OUT',
+                qty: outQty,
+                price: item.price || 0,
+                note: `[모바일 일반출고] ${note}`,
+                worker: window.currentUser
+            });
+
+            window.writeAuditLog("QR_DISPENSE_SIMPLE", code, `[모바일 WMS] 일반 소모품 출고 완료 [수량: ${outQty}, 잔여: ${item.stock}]`);
+
+            if (typeof window.pushFullDataToCloud === 'function') {
+                try {
+                    await window.pushFullDataToCloud();
+                    window.showToast("✅ 클라우드 저장 및 출고 완료!");
+                } catch(e) {
+                    window.showToast("로컬 불출 완료 (서버 동기화 대기)");
+                }
+            } else {
+                window.showToast("✅ 로컬 불출 등록 완료!");
+            }
+
+            // UI 초기화
+            if(qtyInput) qtyInput.value = "";
+            if(noteInput) noteInput.value = "";
+            window.showItemDetailScreen(code);
+        };
+
+        // 🚨 GMP 인터락 및 출고(불출) 등록 로직 (원자재 + A급 소모품)
+        window.handleLotDispense = async function(code, slipNo, batch, lotId) {
+            const qtyInput = document.getElementById(`out-qty-${lotId}`);
+            const noteInput = document.getElementById(`out-note-${lotId}`);
+            
+            const outQty = parseFloat(qtyInput ? qtyInput.value : 0);
+            const note = noteInput ? noteInput.value.trim() : "";
+
+            if (!outQty || outQty <= 0) {
+                window.showToast("⚠️ 출고 수량을 정확히 입력해주세요.");
+                return;
+            }
+
+            const isConsumable = !!window.CONSUMABLE_DATA[code];
+            const item = isConsumable ? window.CONSUMABLE_DATA[code] : window.MASTER_LEDGER_DATA[code];
+            if (!item || !item.records) return;
+
+            const receipts = getInventoryFIFOState(code);
+            const targetLot = receipts.find(r => r.slipNo === slipNo && r.batch === batch && r.remaining > 0);
+
+            if (!targetLot) {
+                window.showToast("⚠️ 잔량이 남아있지 않거나 대상을 찾을 수 없습니다.");
+                return;
+            }
+
+            if (outQty > targetLot.remaining) {
+                window.showToast(`⚠️ 출고 수량이 현재 잔량(${targetLot.remaining})을 초과합니다.`);
+                return;
+            }
+
+            // 1. ⛔ GMP 상태 인터락 검사 (원자재인 경우에만 엄격 검사)
+            if (!isConsumable && targetLot.testStatus !== '적합') {
+                window.playBeep('error');
+                window.showInterlockModal(
+                    '⛔ GMP 품질 인터락 차단',
+                    '승인되지 않은 자재 상태입니다.',
+                    `자재: <span class="font-mono text-blue-600 font-bold">${code}</span> (${item.name})\n입고번호: <span class="font-mono">${slipNo}</span> / Lot: <span class="font-mono">${batch}</span>\n현재 품질 상태: <span class="text-red-600 font-bold">${targetLot.testStatus}</span>\n\nQA 부서의 '적격승인(Released)' 처리 후 다시 시도해 주십시오.`,
+                    'error'
+                );
+                window.writeAuditLog("INTERLOCK_BLOCKED", code, `미승인 상태(${targetLot.testStatus}) 불출 시도 차단됨 [Lot: ${batch}, 요청량: ${outQty}]`);
+                return;
+            }
+
+            // 2. ⚠️ FEFO (선유효기간 만료일 사용) 순서 검사
+            const earlierLots = receipts.filter(r => 
+                r.remaining > 0 && 
+                (!isConsumable ? r.testStatus === '적합' : true) && 
+                r.expiryDate && r.expiryDate !== '-' && 
+                targetLot.expiryDate && targetLot.expiryDate !== '-' && 
+                new Date(r.expiryDate) < new Date(targetLot.expiryDate)
+            );
+
+            if (earlierLots.length > 0) {
+                window.playBeep('warning');
+                const earliest = earlierLots.sort((a,b) => new Date(a.expiryDate) - new Date(b.expiryDate))[0];
+                window.showInterlockModal(
+                    '⚠️ FEFO (선사용) 위반 경고',
+                    '유효기간이 더 먼저 만료되는 Lot이 존재합니다.',
+                    `우선 출고 권장 Lot: <span class="text-blue-600 font-bold font-mono">${earliest.batch || earliest.slipNo} (${earliest.expiryDate})</span>\n스캔 선택 Lot: <span class="font-mono">${batch || slipNo}</span> (${targetLot.expiryDate})\n\nGMP 규정에 따라 유효기간이 먼저 만료되는 자재를 선사용해 주시기 바랍니다.`,
+                    'warning'
+                );
+                window.writeAuditLog("FEFO_VIOLATION_ATTEMPT", code, `[FEFO 위반 시도] 우선만료 Lot 대신 후순위 Lot(${batch}) 불출 시도됨`);
+                return;
+            }
+
+            // 3. 정상 불출 처리 및 Audit 기록
+            window.playBeep('success');
+            const todayStr = new Date().toISOString().slice(0, 10);
+            
+            if (isConsumable) {
+                item.stock -= outQty; // 마스터 잔량 즉시 차감
+                item.records.push({
+                    date: todayStr,
+                    slipNo: slipNo,
+                    batch: batch,
+                    expiryDate: targetLot.expiryDate || "-",
+                    type: 'OUT',
+                    qty: outQty,
+                    price: item.price || 0,
+                    note: `[모바일 WMS 불출] ${note}`,
+                    worker: window.currentUser
+                });
+            } else {
+                item.records.push({
+                    date: todayStr,
+                    slipNo: slipNo,
+                    packUnit: 0, packQty: 0, income: 0, sampleSet: 0, sampleQty: 0, actualIncome: 0,
+                    outcome: outQty,
+                    price: 0, amount: 0,
+                    batch: batch,
+                    testNo: targetLot.testNo || "-",
+                    mfgDate: "-",
+                    expiryDate: targetLot.expiryDate || "-",
+                    vendor: "-", mfg: "-", storage: "-",
+                    note: `[모바일 WMS 불출] ${note}`,
+                    testStatus: "적합",
+                    erpRegistered: false
+                });
+            }
+
+            window.writeAuditLog("QR_DISPENSE", code, `[모바일 WMS] Lot ${batch} 불출 성공 [수량: ${outQty}, 사유: ${note}]`);
+
+            if (typeof window.pushFullDataToCloud === 'function') {
+                try {
+                    await window.pushFullDataToCloud();
+                    window.showToast("✅ 클라우드 저장 및 불출 완료!");
+                } catch(e) {
+                    window.showToast("로컬 불출 완료 (서버 동기화 대기)");
+                }
+            } else {
+                window.showToast("✅ 로컬 불출 등록 완료!");
+            }
+
+            // 화면 갱신
+            window.showItemDetailScreen(code);
+        };
+
+        function navigateBack() { window.currentActiveItemCode = ""; navigateToScreen("screenList"); }
+
+        function navigateToScreen(targetScreenId) {
+            window.currentActiveScreen = targetScreenId; 
+            const screens = ["screenLogin", "screenList", "screenAudit", "screenDetail"];
+            screens.forEach(s => {
+                const el = document.getElementById(s);
+                if (!el) return;
+                if (s === targetScreenId) {
+                    el.classList.remove('opacity-0', 'pointer-events-none', 'translate-x-full');
+                    el.classList.add('opacity-100', 'translate-x-0');
+                    el.style.pointerEvents = "auto";
+                } else {
+                    el.classList.remove('opacity-100');
+                    el.classList.add('opacity-0', 'pointer-events-none');
+                    el.style.pointerEvents = "none";
+                    if (s !== "screenLogin") el.classList.add('translate-x-full');
+                }
+            });
+        }
+
+        window.openAuditScreen = openAuditScreen;
+        window.closeAuditScreen = closeAuditScreen;
+        window.handleAuditToggle = handleAuditToggle;
+        window.handleAuditQtyChange = handleAuditQtyChange;
+        window.handleLogin = handleLogin;
+        window.handleLogout = handleLogout;
+        window.clearSearch = clearSearch;
+        window.filterMenu = filterMenu;
+        window.toggleSidebarSort = toggleSidebarSort;
+        window.filterCategory = filterCategory;
+    </script>
+</body>
+</html>

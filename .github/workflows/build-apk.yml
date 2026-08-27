@@ -23,7 +23,7 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Create Android Project Structure & Set Icon
+    - name: Prepare Android Project & Set Icon
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
@@ -44,31 +44,10 @@ jobs:
           cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
         fi
 
-        # Create AndroidManifest.xml (Safe and Clean)
-        cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.CAMERA" />
-            
-            <application
-                android:allowBackup="true"
-                android:icon="@mipmap/ic_launcher"
-                android:roundIcon="@mipmap/ic_launcher"
-                android:label="AGRIO"
-                android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                <activity
-                    android:name=".MainActivity"
-                    android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN" />
-                        <category android:name="android.intent.category.LAUNCHER" />
-                    </intent-filter>
-                </activity>
-            </application>
-        </manifest>
-        EOF
+        # Move pre-created AndroidManifest.xml into android project
+        if [ -f "AndroidManifest.xml" ]; then
+          cp AndroidManifest.xml android-app/app/src/main/AndroidManifest.xml
+        fi
 
         # Create strings.xml
         cat << 'EOF' > android-app/app/src/main/res/values/strings.xml

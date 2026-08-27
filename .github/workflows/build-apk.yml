@@ -9,85 +9,209 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-      - name: Create Android Project Structure
-        run: |
-          mkdir -p android-app/app/src/main/assets
-          mkdir -p android-app/app/src/main/java/com/example/htmlapp
-          mkdir -p android-app/app/src/main/res/layout
-          mkdir -p android-app/app/src/main/res/mipmap-hdpi
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
 
-          # Copy user web files to assets
-          cp -r index.html android-app/app/src/main/assets/ || true
-          # Copy other assets if exist (css, js, images)
-          cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
-          cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
-          cp -r assets/ android-app/app/src/main/assets/ 2>/dev/null || true
+    - name: Setup Android Project Files
+      run: |
+        mkdir -p android-app/app/src/main/assets
+        mkdir -p android-app/app/src/main/java/com/example/htmlapp
+        mkdir -p android-app/app/src/main/res/values
+        mkdir -p android-app/app/src/main/res/mipmap-mdpi
+        mkdir -p android-app/app/src/main/res/mipmap-hdpi
+        mkdir -p android-app/app/src/main/res/mipmap-xhdpi
+        mkdir -p android-app/app/src/main/res/mipmap-xxhdpi
+        mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
 
-          # Create AndroidManifest.xml
-          cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="HTML App"
-                  android:roundIcon="@mipmap/ic_launcher_round"
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          아이콘 카테고리 설정
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+        # Copy web files
+        cp -r index.html android-app/app/src/main/assets/ || true
+        cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
+        cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-          # Create MainActivity.java
-          cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-          package com.example.htmlapp;
-          import android.os.Bundle;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import androidx.appcompat.app.AppCompatActivity;
+        # Generate default icon data
+        python3 -c "
+        import base64
+        png_data = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAOElEQVR42u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgw16AABVjR32wAAAABJRU5ErkJggg==')
+        dirs = ['mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi']
+        for d in dirs:
+            path = f'android-app/app/src/main/res/{d}'
+            with open(f'{path}/ic_launcher.png', 'wb') as f:
+                f.write(png_data)
+            with open(f'{path}/ic_launcher_round.png', 'wb') as f:
+                f.write(png_data)
+        "
 
-          public class MainActivity extends AppCompatActivity {
-              private WebView webView;
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  webView = new WebView(this);
-                  setContentView(webView);
-                  webView.setWebViewClient(new WebViewClient());
-                  WebSettings settings = webView.getSettings();
-                  settings.setJavaScriptEnabled(true);
-                  settings.setDomStorageEnabled(true);
-                  webView.loadUrl("file:///android_asset/index.html");
-              }
-              @Override
-              public void onBackPressed() {
-                  if (webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
-          }
-          EOF
+        # Overwrite with user icon if uploaded
+        for img in icon.png icon.jpg icon.jpeg logo.png; do
+          if [ -f "$img" ]; then
+            for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              cp "$img" "android-app/app/src/main/res/$d/ic_launcher.png"
+              cp "$img" "android-app/app/src/main/res/$d/ic_launcher_round.png"
+            done
+            break
+          fi
+        done
 
-          # Create build.gradle files minimal setup for building
-          # (Simplified wrapper task or standard gradle build template can be inserted here)
+        # Create AndroidManifest.xml
+        cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            
+            <application
+                android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
+                android:roundIcon="@mipmap/ic_launcher_round"
+                android:label="@string/app_name"
+                android:supportsRtl="true"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        # Create strings.xml
+        cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
+        <resources>
+            <string name="app_name">AGRIO</string>
+        </resources>
+        EOF
+
+        # Create MainActivity.java
+        cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
+        package com.example.htmlapp;
+
+        import android.Manifest;
+        import android.content.pm.PackageManager;
+        import android.os.Bundle;
+        import android.webkit.PermissionRequest;
+        import android.webkit.WebChromeClient;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import androidx.appcompat.app.AppCompatActivity;
+        import androidx.core.app.ActivityCompat;
+        import androidx.core.content.ContextCompat;
+
+        public class MainActivity extends AppCompatActivity {
+            private WebView mywebView;
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, 100);
+                }
+
+                mywebView = new WebView(this);
+                WebSettings ws = mywebView.getSettings();
+                ws.setJavaScriptEnabled(true);
+                ws.setDomStorageEnabled(true);
+                ws.setAllowFileAccess(true);
+                ws.setAllowContentAccess(true);
+                ws.setMediaPlaybackRequiresUserGesture(false);
+
+                mywebView.setWebViewClient(new WebViewClient());
+                mywebView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                request.grant(request.getResources());
+                            }
+                        });
+                    }
+                });
+
+                mywebView.loadUrl("file:///android_asset/index.html");
+                setContentView(mywebView);
+            }
+
+            @Override
+            public void onBackPressed() {
+                if (mywebView.canGoBack()) {
+                    mywebView.goBack();
+                } else {
+                    super.onBackPressed();
+                }
+            }
+        }
+        EOF
+
+        # Create build.gradle files
+        cat << 'EOF' > android-app/app/build.gradle
+        plugins {
+            id 'com.android.application'
+        }
+        android {
+            namespace 'com.example.htmlapp'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.example.htmlapp"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
+        }
+        EOF
+
+        echo "include ':app'" > android-app/settings.gradle
+
+        cat << 'EOF' > android-app/build.gradle
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.1.1'
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        EOF
+
+        echo "android.useAndroidX=true" > android-app/gradle.properties
+
+    - name: Build APK with Gradle
+      working-directory: android-app
+      run: |
+        gradle wrapper --gradle-version 8.4
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: android-app/app/build/outputs/apk/debug/app-debug.apk

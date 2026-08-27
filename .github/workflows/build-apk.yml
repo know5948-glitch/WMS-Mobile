@@ -23,7 +23,7 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Setup Android Project Files
+    - name: Setup Android Project Files & Icon & Name
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
@@ -34,12 +34,12 @@ jobs:
         mkdir -p android-app/app/src/main/res/mipmap-xxhdpi
         mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
 
-        # Copy web files
+        # 1. 웹 파일 복사
         cp -r index.html android-app/app/src/main/assets/ || true
         cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
         cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # Generate default icon data
+        # 2. 기본 아이콘 생성 (누락 방지)
         python3 -c "
         import base64
         png_data = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAOElEQVR42u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgw16AABVjR32wAAAABJRU5ErkJggg==')
@@ -52,7 +52,7 @@ jobs:
                 f.write(png_data)
         "
 
-        # Overwrite with user icon if uploaded
+        # 3. 업로드된 icon.png 파일 적용
         for img in icon.png icon.jpg icon.jpeg logo.png; do
           if [ -f "$img" ]; then
             for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
@@ -63,7 +63,7 @@ jobs:
           fi
         done
 
-        # Create AndroidManifest.xml
+        # 4. AndroidManifest.xml 생성
         cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -89,14 +89,14 @@ jobs:
         </manifest>
         EOF
 
-        # Create strings.xml
+        # 5. 앱 이름을 WMS M 으로 설정
         cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
         <resources>
-            <string name="app_name">AGRIO</string>
+            <string name="app_name">WMS M</string>
         </resources>
         EOF
 
-        # Create MainActivity.java
+        # 6. MainActivity.java 생성 (카메라 자동 승인 브릿지)
         cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         package com.example.htmlapp;
 
@@ -159,7 +159,7 @@ jobs:
         }
         EOF
 
-        # Create build.gradle files
+        # 7. Gradle 빌드 설정 생성
         cat << 'EOF' > android-app/app/build.gradle
         plugins {
             id 'com.android.application'

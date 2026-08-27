@@ -23,29 +23,42 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Create Android Project Structure
+    - name: Create Android Project Structure & Set Icon
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
         mkdir -p android-app/app/src/main/res/values
+        mkdir -p android-app/app/src/main/res/mipmap-hdpi
+        mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
 
         # Copy web files to assets
         cp -r index.html android-app/app/src/main/assets/ || true
         cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
         cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # Create AndroidManifest.xml (Camera permission added)
+        # Copy user uploaded icon (icon.png) to mipmap if exists
+        if [ -f "icon.png" ]; then
+          cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+        fi
+
+        # Create AndroidManifest.xml
         cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.CAMERA" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
             <uses-feature android:name="android.hardware.camera" android:required="false" />
             <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
             
             <application
                 android:allowBackup="true"
-                android:label="WMS App"
+                android:icon="@mipmap/ic_launcher"
+                android:roundIcon="@mipmap/ic_launcher"
+                android:label="AGRIO"
                 android:supportsRtl="true"
                 android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                 <activity
@@ -63,17 +76,20 @@ jobs:
         # Create strings.xml
         cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
         <resources>
-            <string name="app_name">WMS App</string>
+            <string name="app_name">AGRIO</string>
         </resources>
         EOF
 
-        # Create MainActivity.java (With runtime camera permission request and file chooser support)
+        # Create MainActivity.java with WebView WebChromeClient for Camera Permissions
         cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
+        package android.content.pm;
         package com.example.htmlapp;
         
         import android.Manifest;
         import android.content.pm.PackageManager;
         import android.os.Bundle;
+        import android.webkit.PermissionRequest;
+        import android.webkit.WebChromeClient;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
@@ -90,7 +106,7 @@ jobs:
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
                 
-                // Request Camera Permission at runtime
+                // Request Android OS Camera Permission
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
                 }
@@ -100,15 +116,25 @@ jobs:
                 webSettings.setJavaScriptEnabled(true);
                 webSettings.setDomStorageEnabled(true);
                 webSettings.setAllowFileAccess(true);
+                webSettings.setMediaPlaybackRequiresUserGesture(false);
+
                 mywebView.setWebViewClient(new WebViewClient());
+                
+                // Allow WebView to grant camera permission requests from web content (HTML)
+                mywebView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                request.grant(request.getResources());
+                            }
+                        });
+                    }
+                });
+
                 mywebView.loadUrl("file:///android_asset/index.html");
                 setContentView(mywebView);
-            }
-
-            @Override
-            public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-                // Handle permission result if needed
             }
 
             @Override

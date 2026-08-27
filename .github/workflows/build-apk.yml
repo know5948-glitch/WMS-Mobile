@@ -9,134 +9,85 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.4'
+      - name: Create Android Project Structure
+        run: |
+          mkdir -p android-app/app/src/main/assets
+          mkdir -p android-app/app/src/main/java/com/example/htmlapp
+          mkdir -p android-app/app/src/main/res/layout
+          mkdir -p android-app/app/src/main/res/mipmap-hdpi
 
-    - name: Build Clean APK
-      run: |
-        mkdir -p android-app/app/src/main/assets
-        mkdir -p android-app/app/src/main/java/com/example/htmlapp
-        mkdir -p android-app/app/src/main/res/values
-        mkdir -p android-app/app/src/main/res/mipmap-hdpi
+          # Copy user web files to assets
+          cp -r index.html android-app/app/src/main/assets/ || true
+          # Copy other assets if exist (css, js, images)
+          cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
+          cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
+          cp -r assets/ android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # 1. 웹 파일 복사
-        cp -r index.html android-app/app/src/main/assets/ || true
-        cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
-        cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
+          # Create AndroidManifest.xml
+          cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="HTML App"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          아이콘 카테고리 설정
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
-        # 2. 아이콘 복사 (존재할 경우)
-        if [ -f "icon.png" ]; then
-          cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
-        fi
+          # Create MainActivity.java
+          cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
+          package com.example.htmlapp;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import androidx.appcompat.app.AppCompatActivity;
 
-        # 3. 표준형 AndroidManifest.xml 작성 (에러 원인 완벽 제거)
-        printf '<?xml version="1.0" encoding="utf-8"?>\n' > android-app/app/src/main/AndroidManifest.xml
-        printf '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '    <uses-permission android:name="android.permission.INTERNET" />\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '    <uses-permission android:name="android.permission.CAMERA" />\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '    <application\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        android:allowBackup="true"\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        android:icon="@mipmap/ic_launcher"\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        android:label="@string/app_name"\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        android:theme="@style/Theme.AppCompat.Light.NoActionBar">\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        <activity\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '            android:name=".MainActivity"\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '            android:exported="true">\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '            <intent-filter>\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '                <action android:name="android.intent.action.MAIN" />\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '                <category android:name="android.intent.category.LAUNCHER" />\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '            </intent-filter>\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        </activity>\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '    </application>\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '</manifest>\n' >> android-app/app/src/main/AndroidManifest.xml
+          public class MainActivity extends AppCompatActivity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  webView.setWebViewClient(new WebViewClient());
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF
 
-        # 4. strings.xml 작성
-        printf '<resources>\n' > android-app/app/src/main/res/values/strings.xml
-        printf '    <string name="app_name">AGRIO</string>\n' >> android-app/app/src/main/res/values/strings.xml
-        printf '</resources>\n' >> android-app/app/src/main/res/values/strings.xml
-
-        # 5. MainActivity.java 작성 (카메라 권한 및 웹뷰 브릿지 포함)
-        printf 'package com.example.htmlapp;\n' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.Manifest;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.content.pm.PackageManager;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.os.Bundle;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.webkit.PermissionRequest;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.webkit.WebChromeClient;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.webkit.WebSettings;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.webkit.WebView;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import android.webkit.WebViewClient;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import androidx.appcompat.app.AppCompatActivity;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import androidx.core.app.ActivityCompat;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'import androidx.core.content.ContextCompat;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf 'public class MainActivity extends AppCompatActivity {\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '    private WebView mywebView;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '    @Override\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '    protected void onCreate(Bundle savedInstanceState) {\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        super.onCreate(savedInstanceState);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, 100);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        mywebView = new WebView(this);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        WebSettings ws = mywebView.getSettings();\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        ws.setJavaScriptEnabled(true);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        ws.setDomStorageEnabled(true);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        ws.setAllowFileAccess(true);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        mywebView.setWebViewClient(new WebViewClient());\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        mywebView.setWebChromeClient(new WebChromeClient() {\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '            @Override public void onPermissionRequest(final PermissionRequest request) {\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '                runOnUiThread(new Runnable() { @Override public void run() { request.grant(request.getResources()); } });\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '            }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        });\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        mywebView.loadUrl("file:///android_asset/index.html");\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        setContentView(mywebView);\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '    }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '    @Override public void onBackPressed() {\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '        if (mywebView.canGoBack()) { mywebView.goBack(); } else { super.onBackPressed(); }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '    }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        printf '}\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-
-        # 6. Gradle 설정
-        printf "plugins { id 'com.android.application' }\nandroid { namespace 'com.example.htmlapp'; compileSdk 34; defaultConfig { applicationId 'com.example.htmlapp'; minSdk 21; targetSdk 34; versionCode 1; versionName '1.0'; } }\ndependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.9.0'; }" > android-app/app/build.gradle
-        echo "include ':app'" > android-app/settings.gradle
-        
-        printf "buildscript {\n" > android-app/build.gradle
-        printf "    repositories {\n" >> android-app/build.gradle
-        printf "        google()\n" >> android-app/build.gradle
-        printf "        mavenCentral()\n" >> android-app/build.gradle
-        printf "    }\n" >> android-app/build.gradle
-        printf "    dependencies {\n" >> android-app/build.gradle
-        printf "        classpath 'com.android.tools.build:gradle:8.1.1'\n" >> android-app/build.gradle
-        printf "    }\n" >> android-app/build.gradle
-        printf "}\n" >> android-app/build.gradle
-        printf "allprojects {\n" >> android-app/build.gradle
-        printf "    repositories {\n" >> android-app/build.gradle
-        printf "        google()\n" >> android-app/build.gradle
-        printf "        mavenCentral()\n" >> android-app/build.gradle
-        printf "    }\n" >> android-app/build.gradle
-        printf "}\n" >> android-app/build.gradle
-
-        echo "android.useAndroidX=true" > android-app/gradle.properties
-
-    - name: Build APK with Gradle
-      working-directory: android-app
-      run: |
-        gradle wrapper --gradle-version 8.4
-        chmod +x gradlew
-        ./gradlew assembleDebug
-
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          # Create build.gradle files minimal setup for building
+          # (Simplified wrapper task or standard gradle build template can be inserted here)

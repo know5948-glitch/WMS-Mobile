@@ -23,7 +23,7 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Build Final APK
+    - name: Build Clean APK
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
@@ -40,12 +40,19 @@ jobs:
           cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
         fi
 
-        # 3. AndroidManifest.xml 작성
-        printf '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' > android-app/app/src/main/AndroidManifest.xml
+        # 3. 표준형 AndroidManifest.xml 작성 (에러 원인 완벽 제거)
+        printf '<?xml version="1.0" encoding="utf-8"?>\n' > android-app/app/src/main/AndroidManifest.xml
+        printf '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' >> android-app/app/src/main/AndroidManifest.xml
         printf '    <uses-permission android:name="android.permission.INTERNET" />\n' >> android-app/app/src/main/AndroidManifest.xml
         printf '    <uses-permission android:name="android.permission.CAMERA" />\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '    <application android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:label="AGRIO" android:theme="@style/Theme.AppCompat.Light.NoActionBar">\n' >> android-app/app/src/main/AndroidManifest.xml
-        printf '        <activity android:name=".MainActivity" android:exported="true">\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '    <application\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '        android:allowBackup="true"\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '        android:icon="@mipmap/ic_launcher"\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '        android:label="@string/app_name"\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '        android:theme="@style/Theme.AppCompat.Light.NoActionBar">\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '        <activity\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '            android:name=".MainActivity"\n' >> android-app/app/src/main/AndroidManifest.xml
+        printf '            android:exported="true">\n' >> android-app/app/src/main/AndroidManifest.xml
         printf '            <intent-filter>\n' >> android-app/app/src/main/AndroidManifest.xml
         printf '                <action android:name="android.intent.action.MAIN" />\n' >> android-app/app/src/main/AndroidManifest.xml
         printf '                <category android:name="android.intent.category.LAUNCHER" />\n' >> android-app/app/src/main/AndroidManifest.xml
@@ -55,9 +62,11 @@ jobs:
         printf '</manifest>\n' >> android-app/app/src/main/AndroidManifest.xml
 
         # 4. strings.xml 작성
-        printf '<resources><string name="app_name">AGRIO</string></resources>\n' > android-app/app/src/main/res/values/strings.xml
+        printf '<resources>\n' > android-app/app/src/main/res/values/strings.xml
+        printf '    <string name="app_name">AGRIO</string>\n' >> android-app/app/src/main/res/values/strings.xml
+        printf '</resources>\n' >> android-app/app/src/main/res/values/strings.xml
 
-        # 5. MainActivity.java 작성
+        # 5. MainActivity.java 작성 (카메라 권한 및 웹뷰 브릿지 포함)
         printf 'package com.example.htmlapp;\n' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         printf 'import android.Manifest;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         printf 'import android.content.pm.PackageManager;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
@@ -97,7 +106,7 @@ jobs:
         printf '    }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         printf '}\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
 
-        # 6. Gradle 설정 (안전한 멀티라인 블록 구조 적용)
+        # 6. Gradle 설정
         printf "plugins { id 'com.android.application' }\nandroid { namespace 'com.example.htmlapp'; compileSdk 34; defaultConfig { applicationId 'com.example.htmlapp'; minSdk 21; targetSdk 34; versionCode 1; versionName '1.0'; } }\ndependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.9.0'; }" > android-app/app/build.gradle
         echo "include ':app'" > android-app/settings.gradle
         

@@ -23,7 +23,7 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Prepare Android Project & Set Icon
+    - name: Build Android App Safely
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
@@ -31,12 +31,12 @@ jobs:
         mkdir -p android-app/app/src/main/res/mipmap-hdpi
         mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
 
-        # Copy web files to assets
+        # Copy web files
         cp -r index.html android-app/app/src/main/assets/ || true
         cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
         cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # Copy user uploaded icon (icon.png) if exists
+        # Copy icon if exists
         if [ -f "icon.png" ]; then
           cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
@@ -44,19 +44,40 @@ jobs:
           cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
         fi
 
-        # Move pre-created AndroidManifest.xml into android project
-        if [ -f "AndroidManifest.xml" ]; then
-          cp AndroidManifest.xml android-app/app/src/main/AndroidManifest.xml
-        fi
+        # 1. Create AndroidManifest.xml directly inside the correct path
+        cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            
+            <application
+                android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
+                android:roundIcon="@mipmap/ic_launcher"
+                android:label="AGRIO"
+                android:supportsRtl="true"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
 
-        # Create strings.xml
+        # 2. Create strings.xml
         cat << 'EOF' > android-app/app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">AGRIO</string>
         </resources>
         EOF
 
-        # Create MainActivity.java with secure WebView camera permission bridge
+        # 3. Create MainActivity.java with Camera & WebView Bridge
         cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         package com.example.htmlapp;
         
@@ -68,7 +89,6 @@ jobs:
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
-        import androidx.annotation.NonNull;
         import androidx.appcompat.app.AppCompatActivity;
         import androidx.core.app.ActivityCompat;
         import androidx.core.content.ContextCompat;
@@ -120,7 +140,7 @@ jobs:
         }
         EOF
 
-        # Create build.gradle
+        # 4. Create build.gradle files
         cat << 'EOF' > android-app/app/build.gradle
         plugins {
             id 'com.android.application'
@@ -142,10 +162,8 @@ jobs:
         }
         EOF
 
-        # Create settings.gradle
         echo "include ':app'" > android-app/settings.gradle
 
-        # Create root build.gradle
         cat << 'EOF' > android-app/build.gradle
         buildscript {
             repositories {
@@ -164,7 +182,6 @@ jobs:
         }
         EOF
 
-        # Create gradle.properties
         echo "android.useAndroidX=true" > android-app/gradle.properties
 
     - name: Build APK with Gradle

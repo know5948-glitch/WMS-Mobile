@@ -36,7 +36,7 @@ jobs:
         cp -r *.css android-app/app/src/main/assets/ 2>/dev/null || true
         cp -r *.js android-app/app/src/main/assets/ 2>/dev/null || true
 
-        # Copy user uploaded icon (icon.png) to mipmap if exists
+        # Copy user uploaded icon (icon.png) if exists
         if [ -f "icon.png" ]; then
           cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
@@ -44,15 +44,12 @@ jobs:
           cp icon.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
         fi
 
-        # Create AndroidManifest.xml
+        # Create AndroidManifest.xml (Safe and Clean)
         cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.CAMERA" />
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-            <uses-feature android:name="android.hardware.camera" android:required="false" />
-            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
             
             <application
                 android:allowBackup="true"
@@ -80,9 +77,8 @@ jobs:
         </resources>
         EOF
 
-        # Create MainActivity.java with WebView WebChromeClient for Camera Permissions
+        # Create MainActivity.java with secure WebView camera permission bridge
         cat << 'EOF' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
-        package android.content.pm;
         package com.example.htmlapp;
         
         import android.Manifest;
@@ -106,7 +102,6 @@ jobs:
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
                 
-                // Request Android OS Camera Permission
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
                 }
@@ -119,8 +114,6 @@ jobs:
                 webSettings.setMediaPlaybackRequiresUserGesture(false);
 
                 mywebView.setWebViewClient(new WebViewClient());
-                
-                // Allow WebView to grant camera permission requests from web content (HTML)
                 mywebView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {

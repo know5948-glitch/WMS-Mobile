@@ -23,7 +23,7 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Build Simple APK
+    - name: Build Final APK
       run: |
         mkdir -p android-app/app/src/main/assets
         mkdir -p android-app/app/src/main/java/com/example/htmlapp
@@ -40,7 +40,7 @@ jobs:
           cp icon.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
         fi
 
-        # 3. AndroidManifest.xml 작성 (공백 오류 방지형)
+        # 3. AndroidManifest.xml 작성
         printf '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' > android-app/app/src/main/AndroidManifest.xml
         printf '    <uses-permission android:name="android.permission.INTERNET" />\n' >> android-app/app/src/main/AndroidManifest.xml
         printf '    <uses-permission android:name="android.permission.CAMERA" />\n' >> android-app/app/src/main/AndroidManifest.xml
@@ -57,7 +57,7 @@ jobs:
         # 4. strings.xml 작성
         printf '<resources><string name="app_name">AGRIO</string></resources>\n' > android-app/app/src/main/res/values/strings.xml
 
-        # 5. MainActivity.java 작성 (카메라 권한 및 웹뷰 브릿지 포함)
+        # 5. MainActivity.java 작성
         printf 'package com.example.htmlapp;\n' > android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         printf 'import android.Manifest;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         printf 'import android.content.pm.PackageManager;\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
@@ -97,10 +97,26 @@ jobs:
         printf '    }\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
         printf '}\n' >> android-app/app/src/main/java/com/example/htmlapp/MainActivity.java
 
-        # 6. Gradle 설정 파일들 생성
+        # 6. Gradle 설정 (안전한 멀티라인 블록 구조 적용)
         printf "plugins { id 'com.android.application' }\nandroid { namespace 'com.example.htmlapp'; compileSdk 34; defaultConfig { applicationId 'com.example.htmlapp'; minSdk 21; targetSdk 34; versionCode 1; versionName '1.0'; } }\ndependencies { implementation 'androidx.appcompat:appcompat:1.6.1'; implementation 'com.google.android.material:material:1.9.0'; }" > android-app/app/build.gradle
         echo "include ':app'" > android-app/settings.gradle
-        echo -e "buildscript { repositories { google(); mavenCentral(); } dependencies { classpath 'com.android.tools.build:gradle:8.1.1'; } }\nallprojects { repositories { google(); mavenCentral(); } }" > android-app/build.gradle
+        
+        printf "buildscript {\n" > android-app/build.gradle
+        printf "    repositories {\n" >> android-app/build.gradle
+        printf "        google()\n" >> android-app/build.gradle
+        printf "        mavenCentral()\n" >> android-app/build.gradle
+        printf "    }\n" >> android-app/build.gradle
+        printf "    dependencies {\n" >> android-app/build.gradle
+        printf "        classpath 'com.android.tools.build:gradle:8.1.1'\n" >> android-app/build.gradle
+        printf "    }\n" >> android-app/build.gradle
+        printf "}\n" >> android-app/build.gradle
+        printf "allprojects {\n" >> android-app/build.gradle
+        printf "    repositories {\n" >> android-app/build.gradle
+        printf "        google()\n" >> android-app/build.gradle
+        printf "        mavenCentral()\n" >> android-app/build.gradle
+        printf "    }\n" >> android-app/build.gradle
+        printf "}\n" >> android-app/build.gradle
+
         echo "android.useAndroidX=true" > android-app/gradle.properties
 
     - name: Build APK with Gradle

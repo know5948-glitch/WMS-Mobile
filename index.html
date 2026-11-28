@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#216a92">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WMS">
+<title>WMS 모바일</title>
+<style>
+:root{
+  --bg:#f3f6f8; --card:#fff; --ink:#16242e; --sub:#5d6f7c; --mute:#93a3ae; --line:#e1e8ed;
+  --action:#216a92; --action-d:#1a5878; --tint:#e8f2f8;
+  --red:#c8364a; --red-t:#fdeef0; --amber:#a86400; --amber-t:#fff4de; --green:#1f7a4d; --green-t:#e6f5ec;
+}
+@media (prefers-color-scheme:dark){
+  :root{ color-scheme:dark; --bg:#10171c; --card:#19232b; --ink:#e8eef2; --sub:#a3b3be; --mute:#6f808c; --line:#2a3741;
+    --action:#5fa8d0; --action-d:#7dbbe0; --tint:#1d3140;
+    --red:#ff8795; --red-t:#3a1d22; --amber:#f0b458; --amber-t:#3a2c12; --green:#6fd09b; --green-t:#16301f; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+.hide{display:none!important}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* 로그인 */
+#login{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding:32px 24px calc(32px + env(safe-area-inset-bottom))}
+#login h1{font-size:26px;margin:0 0 4px;letter-spacing:-.03em}
+#login p{margin:0 0 28px;color:var(--sub)}
+.field{display:block;margin-bottom:12px}
+.field span{display:block;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:5px}
+.field input{width:100%;height:50px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:0 14px;font-size:16px;outline:none}
+.field input:focus{border-color:var(--action)}
+.btn{height:50px;width:100%;border-radius:12px;background:var(--action);color:#fff;font-weight:700;font-size:16px}
+@media (prefers-color-scheme:dark){.btn{color:#0d1a22}}
+.btn:disabled{opacity:.55}
+#loginErr{color:var(--red);font-size:13px;margin:10px 0 0;min-height:18px}
+
+/* 앱 뼈대 */
+#app{display:flex;flex-direction:column;height:100%}
+header{background:var(--action);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;flex:none}
+@media (prefers-color-scheme:dark){header{background:#16303f;color:var(--ink)}}
+.hrow{display:flex;align-items:center;gap:8px}
+.hrow b{font-size:17px;letter-spacing:-.02em}
+#syncLbl{font-size:12px;opacity:.85;margin-left:auto;text-align:right;line-height:1.25}
+.hbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:inherit;font-size:20px}
+.hbtn:active{background:rgba(255,255,255,.18)}
+.spin{animation:sp 0.9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#search{margin-top:8px;width:100%;height:42px;border-radius:11px;border:0;padding:0 14px;font-size:16px;background:rgba(255,255,255,.96);color:#16242e;outline:none}
+@media (prefers-color-scheme:dark){#search{background:#0f1a21;color:var(--ink)}}
+#chips{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;flex:none;scrollbar-width:none;background:var(--bg)}
+#chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--sub);white-space:nowrap}
+.chip.on{background:var(--action);border-color:var(--action);color:#fff}
+@media (prefers-color-scheme:dark){.chip.on{color:#0d1a22}}
+.chip i{font-style:normal;font-weight:800;margin-left:3px}
+.chip.warn:not(.on) i{color:var(--red)}
+.chip.exp:not(.on) i{color:var(--amber)}
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+nav{flex:none;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;height:54px;font-size:13px;font-weight:700;color:var(--mute);position:relative}
+nav button.on{color:var(--action)}
+nav button.on::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--action)}
+
+/* 목록 */
+.list{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);border-left:4px solid transparent;min-height:58px}
+.row:last-child{border-bottom:0}
+.row:active{background:var(--tint)}
+.row.low{border-left-color:var(--red)}
+.row.soon{border-left-color:var(--amber)}
+.row .l{flex:1;min-width:0}
+.row .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sb{font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .r{text-align:right;flex:none}
+.row .q{font-size:17px;font-weight:800}
+.row .q small{font-size:11px;font-weight:600;color:var(--sub);margin-left:2px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--bg);color:var(--sub);vertical-align:1px}
+.tag.red{background:var(--red-t);color:var(--red)} .tag.amber{background:var(--amber-t);color:var(--amber)}
+.tag.green{background:var(--green-t);color:var(--green)} .tag.blue{background:var(--tint);color:var(--action)}
+.empty{padding:48px 24px;text-align:center;color:var(--mute);font-size:14px}
+.more{display:block;width:100%;padding:14px;font-weight:700;color:var(--action);font-size:14px}
+.dayhead{padding:14px 14px 6px;font-size:12px;font-weight:800;color:var(--sub)}
+
+/* 수불 한 줄 */
+.rec{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:flex-start;width:100%;text-align:left}
+.rec:last-child{border-bottom:0}
+.rec .io{flex:none;width:38px;height:24px;border-radius:6px;font-size:12px;font-weight:800;display:grid;place-items:center;margin-top:1px}
+.io.in{background:var(--green-t);color:var(--green)} .io.out{background:var(--tint);color:var(--action)}
+.rec .l{flex:1;min-width:0}
+.rec .t{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec .s{font-size:12px;color:var(--sub);word-break:break-all}
+.rec .q{flex:none;font-weight:800;font-size:15px}
+
+/* 상세 시트 */
+#sheet{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s ease-out}
+#sheet.open{transform:none}
+#sheetHead{flex:none;display:flex;align-items:center;gap:4px;background:var(--card);border-bottom:1px solid var(--line);padding:calc(6px + env(safe-area-inset-top)) 6px 6px}
+#sheetHead .hbtn{color:var(--ink)}
+#sheetHead .hbtn:active{background:var(--tint)}
+#sheetTitle{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+#sheetBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.hero{background:var(--card);padding:18px 16px 16px;border-bottom:1px solid var(--line)}
+.hero h2{margin:0 0 2px;font-size:19px;letter-spacing:-.02em;line-height:1.3}
+.hero .meta{font-size:13px;color:var(--sub)}
+.big{margin-top:14px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.big b{font-size:38px;font-weight:800;line-height:1;letter-spacing:-.03em}
+.big span{font-size:15px;font-weight:700;color:var(--sub)}
+.bar{height:6px;border-radius:3px;background:var(--line);margin-top:12px;position:relative;overflow:visible}
+.bar div{height:100%;border-radius:3px;background:var(--action);max-width:100%}
+.bar.low div{background:var(--red)}
+.bar em{position:absolute;top:-3px;width:2px;height:12px;background:var(--ink);border-radius:1px}
+.barcap{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:6px}
+.tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+h3{margin:0;padding:18px 16px 7px;font-size:13px;font-weight:800;color:var(--sub)}
+.kv{display:flex;justify-content:space-between;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--sub);flex:none}
+.kv span:last-child{text-align:right;font-weight:600;word-break:break-word}
+.lot{padding:10px 16px;border-bottom:1px solid var(--line)}
+.lot:last-child{border-bottom:0}
+.lot .a{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.lot .a b{font-size:14.5px;word-break:break-all}
+.lot .a .q{font-weight:800;flex:none}
+.lot .b{font-size:12px;color:var(--sub);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pt{padding:13px 16px;border-bottom:1px solid var(--line)}
+.pt:last-child{border-bottom:0}
+.pt .n{font-weight:700;font-size:15px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pt .c{font-size:13.5px;margin-top:4px}
+.pt .m{font-size:12.5px;color:var(--sub);margin-top:4px;white-space:pre-wrap}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.act{height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:700;color:var(--action);display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.act.pri{background:var(--action);border-color:var(--action);color:#fff}
+@media (prefers-color-scheme:dark){.act.pri{color:#0d1a22}}
+.act:active{opacity:.7}
+.hint{font-size:12.5px;color:var(--mute);padding:10px 16px}
+
+/* 메뉴 · 토스트 · 진행 */
+#menu{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}
+#menu .box{background:var(--card);width:100%;border-radius:18px 18px 0 0;padding:8px 0 calc(10px + env(safe-area-inset-bottom))}
+#menu .who{padding:14px 18px 10px;font-size:13px;color:var(--sub)}
+#menu button{display:block;width:100%;text-align:left;padding:15px 18px;font-size:16px;font-weight:600}
+#menu button:active{background:var(--tint)}
+#menu button small{display:block;font-size:12px;color:var(--mute);font-weight:500}
+#toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#16242e;color:#fff;padding:10px 16px;border-radius:20px;font-size:13.5px;font-weight:600;z-index:40;max-width:86%;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:.95}
+#prog{padding:56px 24px;text-align:center;color:var(--sub)}
+#prog b{display:block;font-size:16px;color:var(--ink);margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login" class="hide">
+  <h1>WMS 모바일</h1>
+  <p>PC WMS와 같은 계정으로 로그인합니다. 조회 전용입니다.</p>
+  <label class="field"><span>이메일</span><input id="lgId" type="email" autocomplete="username" inputmode="email"></label>
+  <label class="field"><span>비밀번호</span><input id="lgPw" type="password" autocomplete="current-password"></label>
+  <button class="btn" id="lgBtn">로그인</button>
+  <div id="loginErr"></div>
+</div>
+
+<!-- 앱 -->
+<div id="app" class="hide">
+  <header>
+    <div class="hrow">
+      <b id="hTitle">재고</b>
+      <span id="syncLbl"></span>
+      <button class="hbtn" id="btnSync" aria-label="새로고침"><span id="syncIco">↻</span></button>
+      <button class="hbtn" id="btnMenu" aria-label="메뉴">⋯</button>
+    </div>
+    <input id="search" type="search" placeholder="품목명 · 코드 · LOT 검색" autocomplete="off" enterkeyhint="search">
+  </header>
+  <div id="chips"></div>
+  <main id="main"></main>
+  <nav>
+    <button data-tab="stock" class="on">재고</button>
+    <button data-tab="recent">최근 수불</button>
+    <button data-tab="partner">업체</button>
+  </nav>
+</div>
+
+<div id="sheet">
+  <div id="sheetHead">
+    <button class="hbtn" id="btnBack" aria-label="뒤로">←</button>
+    <div id="sheetTitle"></div>
+    <button class="hbtn hide" id="btnFav" aria-label="즐겨찾기">☆</button>
+    <button class="hbtn hide" id="btnShare" aria-label="공유">⤴</button>
+  </div>
+  <div id="sheetBody"></div>
+</div>
+<div id="menu" class="hide"><div class="box">
+  <div class="who" id="menuWho"></div>
+  <button data-m="full">전체 다시 받기<small>재고가 PC와 다르게 보일 때만 누르세요 (서버 읽기를 많이 씁니다)</small></button>
+  <button data-m="logout">로그아웃</button>
+  <button data-m="close">닫기</button>
+</div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import * as FS from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-lite.js";
+
+// ===== PC WMS 와 같은 서버 (조회 전용 — 이 파일은 서버에 아무것도 쓰지 않습니다) =====
+const CFG = {
+  apiKey: "AIzaSyDd0qS7-Nj3xRVjtckq1ZXynlSM0c0z7Cw",
+  authDomain: "peptron-wms.firebaseapp.com",
+  projectId: "peptron-wms",
+  storageBucket: "peptron-wms.firebasestorage.app",
+  messagingSenderId: "640501972572",
+  appId: "1:640501972572:web:49ccd5fe56a84cb4bab099",
+};
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const AUTO_SYNC_MS = 10 * 60 * 1000;      // 10분 지나서 다시 열면 자동으로 변경분만 받음
+const FULL_EVERY = 7 * 86400000;          // 7일마다 한 번은 전체 다시 받음 (PC와 동일)
+const SOON_DAYS = 30;                     // 사용기한 임박 기준 (일)
+const CACHE_VER = 1, SKEW = 60000;
+
+const fb = initializeApp(CFG), auth = getAuth(fb), db = FS.getFirestore(fb);
+const { doc, getDoc, getDocs, collection, collectionGroup, query, where, Timestamp } = FS;
+const getCnt = FS.getCount || FS.getCountFromServer;
+const COL = (...p) => collection(db, 'artifacts', appId, 'public', 'data', ...p);
+const DOC = (...p) => doc(db, 'artifacts', appId, 'public', 'data', ...p);
+
+// ===== 작은 도구들 =====
+const $ = id => document.getElementById(id);
+const E = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => Number(v) || 0;
+const R3 = v => Math.round(num(v) * 1000) / 1000;
+const fmt = v => R3(v).toLocaleString('ko-KR', { maximumFractionDigits: 3 });
+const pad = n => String(n).padStart(2, '0');
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const dday = exp => { if (!exp || exp === '-') return null; const d = new Date(exp); if (isNaN(d)) return null; const t = new Date(); t.setHours(0, 0, 0, 0); return Math.ceil((d - t) / 86400000); };
+const ddayTxt = n => n == null ? '' : n < 0 ? `${-n}일 지남` : n === 0 ? '오늘까지' : `D-${n}`;
+const blank = v => !v || String(v).trim() === '' || String(v).trim() === '-';
+let toastT; const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); };
+async function pool(arr, n, fn) { let i = 0; const run = async () => { while (i < arr.length) { const k = i++; await fn(arr[k], k); } }; await Promise.all(Array.from({ length: Math.min(n, arr.length) }, run)); }
+
+// ===== 이 휴대폰에 보관하는 서버 사본 (IndexedDB) — 다음부터는 바뀐 것만 받음 =====
+const IDB_KEY = 'mirror_' + CFG.projectId + '_' + appId;
+let idbH = null;
+const idbOpen = () => idbH ? Promise.resolve(idbH) : new Promise((res, rej) => { const q = indexedDB.open('peptron_wms_mobile', 1); q.onupgradeneeded = () => q.result.createObjectStore('kv'); q.onsuccess = () => { idbH = q.result; res(idbH); }; q.onerror = () => rej(q.error); });
+async function idbGet(k) { try { const d = await idbOpen(); return await new Promise(res => { const r = d.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); }); } catch (e) { return null; } }
+async function idbSet(k, v) { try { const d = await idbOpen(); await new Promise(res => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; t.onabort = res; }); } catch (e) {} }
+async function idbDel(k) { try { const d = await idbOpen(); await new Promise(res => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = res; t.onerror = res; }); } catch (e) {} }
+
+// ===== 동기화 (PC WMS의 증분 동기화와 같은 방식, 읽기만) =====
+let MIR = null, syncing = false, progCb = null;
+const TS = ms => Timestamp.fromMillis(Math.max(0, ms || 0));
+const uMs = d => { const u = d.get('_u'); return (u && typeof u.toMillis === 'function') ? u.toMillis() : 0; };
+const strip = d => { const o = d.data(); delete o._u; return o; };
+const cnt = async ref => (await getCnt(ref)).data().count;
+const emptyMirror = ep => ({ v: CACHE_VER, appId, epoch: ep, fullAt: 0, syncAt: 0, metaAt: -1, by: '', wm: {}, items: {}, consumables: {}, partners: [] });
+
+async function syncGroup(S, name, sub, full, changed) {
+  const readAllParents = async keep => {
+    const snap = await getDocs(COL(name)); const old = S[name], next = {};
+    snap.forEach(d => { const o = keep && old[d.id]; next[d.id] = { m: strip(d), r: o ? o.r : null, w: o ? o.w : 0 }; S.wm[name] = Math.max(S.wm[name] || 0, uMs(d)); });
+    S[name] = next;
+  };
+  const readRecs = async id => {
+    const e = S[name][id]; if (!e) return;
+    const snap = await getDocs(COL(name, id, sub)); const r = {}; let w = 0;
+    snap.forEach(d => { r[d.id] = strip(d); w = Math.max(w, uMs(d)); });
+    e.r = r; e.w = w;
+  };
+  const refreshParent = async id => { const s = await getDoc(DOC(name, id)); if (s.exists() && S[name][id]) S[name][id].m = strip(s); };
+
+  if (full) {
+    await readAllParents(false);
+    const ids = Object.keys(S[name]); let done = 0;
+    await pool(ids, 8, async id => { await readRecs(id); done++; if (progCb) progCb(name, done, ids.length); });
+    return;
+  }
+  const touched = new Set(), checked = new Set();
+  if (changed) {
+    // 1) PC가 저장하면서 바뀐 품목
+    const ps = await getDocs(query(COL(name), where('_u', '>=', TS((S.wm[name] || 0) - SKEW))));
+    ps.forEach(d => { const e = S[name][d.id]; if (e) e.m = strip(d); else S[name][d.id] = { m: strip(d), r: null, w: 0 }; S.wm[name] = Math.max(S.wm[name] || 0, uMs(d)); touched.add(d.id); });
+    // 2) 품목 추가 · 삭제
+    if (await cnt(COL(name)) !== Object.keys(S[name]).length) await readAllParents(true);
+    // 3) 바뀐 품목의 바뀐 기록만
+    const G0 = S[name];
+    await pool(Object.keys(G0), 8, async id => {
+      const e = G0[id];
+      if (!e.r) { await readRecs(id); checked.add(id); return; }
+      if (!touched.has(id)) return;
+      const s = await getDocs(query(COL(name, id, sub), where('_u', '>=', TS((e.w || 0) - SKEW))));
+      s.forEach(d => { e.r[d.id] = strip(d); e.w = Math.max(e.w || 0, uMs(d)); });
+      if (await cnt(COL(name, id, sub)) !== Object.keys(e.r).length) await readRecs(id);
+      checked.add(id);
+    });
+  }
+  // 4) 전체 기록 개수 대조 (다르면 어긋난 품목만 다시 받음)
+  const G = S[name];
+  const localTotal = Object.values(G).reduce((s, e) => s + Object.keys(e.r || {}).length, 0);
+  let ok = false;
+  try { ok = (await cnt(collectionGroup(db, sub))) === localTotal; } catch (e) {}
+  if (!ok) {
+    const ids = Object.keys(G).filter(id => !checked.has(id));
+    const counts = new Array(ids.length);
+    await pool(ids, 8, async (id, i) => { counts[i] = await cnt(COL(name, id, sub)); });
+    const bad = ids.filter((id, i) => counts[i] !== Object.keys(G[id].r || {}).length);
+    await pool(bad, 8, async id => { await readRecs(id); await refreshParent(id); });
+  }
+}
+
+async function doSync(S, full, changed) {
+  const jobs = [syncGroup(S, 'items', 'records', full, changed), syncGroup(S, 'consumables', 'crecords', full, changed)];
+  if (changed) jobs.push((async () => {      // 업체(담당자 · 연락처) 목록 — 문서 1개
+    const s = await getDoc(DOC('config', 'processBom'));
+    const pb = s.exists() ? (s.data().data || {}) : {};
+    S.partners = (pb._partners && Array.isArray(pb._partners.list)) ? pb._partners.list : [];
+  })());
+  await Promise.all(jobs);
+}
+
+async function syncNow(forceFull) {
+  if (!getCnt) throw new Error('이 브라우저에서는 동기화 모듈을 불러오지 못했습니다.');
+  const ms = await getDoc(DOC('config', '_meta'));
+  if (!ms.exists()) throw new Error('서버에 데이터가 아직 없습니다. PC WMS에서 먼저 한 번 저장해 주세요.');
+  const meta = ms.data(), ep = meta.epoch || '';
+  let S = MIR;
+  let full = !!forceFull || !S || S.v !== CACHE_VER || S.appId !== appId || S.epoch !== ep || (Date.now() - (S.fullAt || 0) > FULL_EVERY);
+  if (full) S = emptyMirror(ep);
+  const changed = full || (meta.updatedAt || 0) !== S.metaAt;
+  try { await doSync(S, full, changed); }
+  catch (e) {
+    if (full) throw e;
+    console.warn('증분 동기화 실패 → 전체 다시 받기', e);
+    S = emptyMirror(ep); full = true; await doSync(S, true, true);
+  }
+  if (full) S.fullAt = Date.now();
+  S.metaAt = meta.updatedAt || 0; S.by = meta.lastUpdatedBy || ''; S.syncAt = Date.now();
+  MIR = S; await idbSet(IDB_KEY, S);
+}
+
+// ===== 재고 계산 (PC WMS와 같은 선입선출 · 가용재고 = 기한 지난 LOT 제외) =====
+const inQ = r => num(r.actualIncome || r.income);
+function cmpRec(a, b) {
+  const d = (Date.parse(a.date) || 0) - (Date.parse(b.date) || 0); if (d) return d;
+  const ai = inQ(a) > 0 ? 0 : 1, bi = inQ(b) > 0 ? 0 : 1; if (ai !== bi) return ai - bi;
+  return ((a.createdAt || 0) - (b.createdAt || 0)) || String(a.mid || '').localeCompare(String(b.mid || ''));
+}
+const cmpCon = (a, b) => ((Date.parse(a.date) || 0) - (Date.parse(b.date) || 0)) || ((a.createdAt || 0) - (b.createdAt || 0));
+function fifo(recs) {
+  const rc = [];
+  recs.forEach(r => { if (inQ(r) > 0) rc.push({ date: r.date, slipNo: String(r.slipNo || '미기입').trim(), batch: r.batch || '-', testNo: r.testNo || '-', expiryDate: r.expiryDate || '-', testStatus: r.testStatus || '적합', storage: r.storage || '', remaining: inQ(r) }); });
+  const take = (out, pick) => { for (const x of rc) { if (out <= 0) break; if (x.remaining <= 0 || !pick(x)) continue; const t = Math.min(x.remaining, out); x.remaining = R3(x.remaining - t); out = R3(out - t); } return out; };
+  recs.forEach(r => {
+    let out = num(r.outcome); if (out <= 0) return;
+    const slip = r.slipNo ? String(r.slipNo).trim() : '';
+    if (slip && slip !== '-' && slip !== '미기입') out = take(out, x => x.slipNo === slip);
+    if (out > 0) take(out, () => true);
+  });
+  const now = new Date();
+  rc.forEach(x => { const e = blank(x.expiryDate) ? null : new Date(x.expiryDate); x.isExpired = !!(e && !isNaN(e) && e < now); x.dd = dday(x.expiryDate); });
+  return rc;
+}
+
+// ===== 화면용 데이터 만들기 =====
+let ITEMS = [], BYKEY = new Map(), FEED = [], PARTNERS = [], PSTAT = new Map();
+const normName = s => String(s || '').replace(/\s+/g, '').replace(/[()（）㈜]|주식회사|\(주\)/g, '').toLowerCase();
+const findPartner = name => { const n = normName(name); if (!n) return null; return PARTNERS.find(p => normName(p.name) === n || (p.aliases || []).some(a => normName(a) === n)) || null; };
+const skipName = nm => !nm || nm === '-' || nm === '생산입고';
+
+function derive() {
+  ITEMS = []; BYKEY = new Map(); FEED = []; PSTAT = new Map();
+  PARTNERS = (MIR && MIR.partners) || [];
+  if (!MIR) return;
+  const addStat = (nm, role, it, date) => {
+    nm = String(nm || '').trim(); if (skipName(nm)) return;
+    const p = findPartner(nm), key = p ? p.id : 'raw:' + nm;
+    let s = PSTAT.get(key); if (!s) PSTAT.set(key, s = { key, name: p ? p.name : nm, partner: p, roles: new Set(), items: new Map(), last: '' });
+    s.roles.add(role); if (String(date) > s.last) s.last = String(date);
+    if (String(date) > (s.items.get(it.key) || '')) s.items.set(it.key, String(date));
+  };
+  Object.keys(MIR.items).forEach(id => {
+    const e = MIR.items[id], m = e.m || {}, code = m._code || id;
+    const recs = Object.values(e.r || {}).sort(cmpRec);
+    const lots = fifo(recs).filter(x => x.remaining > 0).sort((a, b) => (blank(a.expiryDate) ? '9999' : a.expiryDate).localeCompare(blank(b.expiryDate) ? '9999' : b.expiryDate) || String(a.date).localeCompare(String(b.date)));
+    const usable = R3(lots.reduce((s, x) => s + (x.isExpired ? 0 : x.remaining), 0));
+    const expired = R3(lots.reduce((s, x) => s + (x.isExpired ? x.remaining : 0), 0));
+    const inactive = m.active === false, safety = num(m.safetyStock);
+    const soonLot = lots.find(x => !x.isExpired && x.dd != null && x.dd <= SOON_DAYS);
+    const it = { kind: 'm', key: 'm/' + code, code, name: m.name || code, cat: m.category || '원자재', unit: m.unit || '', meta: m, recs, lots, stock: usable, expired, safety, inactive,
+      low: !inactive && usable < safety, soon: !inactive && (expired > 0 || !!soonLot), soonTxt: expired > 0 ? '기한 지난 LOT' : soonLot ? '기한 ' + ddayTxt(soonLot.dd) : '',
+      hay: (code + ' ' + (m.name || '') + ' ' + recs.map(r => (r.batch || '') + ' ' + (r.slipNo || '')).join(' ')).toLowerCase() };
+    ITEMS.push(it);
+    recs.forEach(r => {
+      if (inQ(r) > 0) { FEED.push({ it, r, io: 'in', q: inQ(r) }); addStat(r.vendor, '거래처', it, r.date); addStat(r.mfg, '제조처', it, r.date); }
+      if (num(r.outcome) > 0) FEED.push({ it, r, io: 'out', q: num(r.outcome) });
+    });
+  });
+  Object.keys(MIR.consumables).forEach(id => {
+    const e = MIR.consumables[id], m = e.m || {}, code = m._code || id;
+    const recs = Object.values(e.r || {}).sort(cmpCon);
+    const stock = R3(m.stock), safety = num(m.safetyStock);
+    let near = null;
+    if (stock > 0) recs.forEach(r => { if (r.type === 'IN' && !blank(r.expiryDate)) { const d = dday(r.expiryDate); if (d != null && (near == null || d < near)) near = d; } });
+    const it = { kind: 'c', key: 'c/' + code, code, name: m.name || code, cat: '소모품', unit: m.unit || '', meta: m, recs, lots: [], stock, expired: 0, safety, inactive: false,
+      low: safety > 0 && stock < safety, soon: near != null && near <= SOON_DAYS, soonTxt: near != null && near <= SOON_DAYS ? (near < 0 ? '기한 지난 입고분' : '기한 ' + ddayTxt(near)) : '', near,
+      hay: (code + ' ' + (m.name || '') + ' ' + recs.map(r => (r.batch || '') + ' ' + (r.slipNo || '')).join(' ')).toLowerCase() };
+    ITEMS.push(it);
+    recs.forEach(r => FEED.push({ it, r, io: r.type === 'IN' ? 'in' : 'out', q: num(r.qty) }));
+  });
+  ITEMS.sort((a, b) => a.code.localeCompare(b.code));
+  ITEMS.forEach(it => BYKEY.set(it.key, it));
+  FEED.sort((a, b) => String(b.r.date || '').localeCompare(String(a.r.date || '')) || ((b.r.createdAt || 0) - (a.r.createdAt || 0)));
+}
+
+// ===== 즐겨찾기 (이 휴대폰에만 저장) =====
+let FAV = new Set(); try { FAV = new Set(JSON.parse(localStorage.getItem('wmsm_fav') || '[]')); } catch (e) {}
+const saveFav = () => { try { localStorage.setItem('wmsm_fav', JSON.stringify([...FAV])); } catch (e) {} };
+
+// ===== 목록 화면 =====
+const ui = { tab: 'stock', q: '', f: 'all', io: 'all', feedN: 60, recN: 15 };
+const TITLES = { stock: '재고', recent: '최근 수불', partner: '업체' };
+const PLACE = { stock: '품목명 · 코드 · LOT 검색', recent: '품목명 · 코드 · LOT · 비고 검색', partner: '업체명 · 담당자 검색' };
+const qtyHtml = it => `${fmt(it.stock)}${it.unit ? `<small>${E(it.unit)}</small>` : ''}`;
+
+function itemRow(it) {
+  const tags = (it.low ? '<span class="tag red">부족</span> ' : '') + (it.soon ? `<span class="tag amber">${E(it.soonTxt)}</span> ` : '') + (it.inactive ? '<span class="tag">미사용</span> ' : '');
+  return `<button class="row ${it.low ? 'low' : it.soon ? 'soon' : ''}" data-go="${E(it.key)}"><div class="l"><div class="nm">${FAV.has(it.key) ? '★ ' : ''}${E(it.name)}</div><div class="sb">${E(it.code)} · ${E(it.cat)} ${tags}</div></div><div class="r"><div class="q num">${qtyHtml(it)}</div>${it.safety ? `<div class="sb num">안전 ${fmt(it.safety)}</div>` : ''}</div></button>`;
+}
+function recRow(x, withItem) {
+  const r = x.r, it = x.it, isIn = x.io === 'in';
+  const bits = [];
+  if (!blank(r.batch)) bits.push('LOT ' + r.batch);
+  if (!blank(r.slipNo)) bits.push(r.slipNo);
+  if (isIn && it.kind === 'm' && r.testStatus && r.testStatus !== '적합') bits.push(r.testStatus);
+  if (isIn && !blank(r.vendor)) bits.push(r.vendor);
+  if (!blank(r.note)) bits.push(r.note);
+  if (!blank(r.worker)) bits.push(r.worker);
+  const head = withItem ? `${E(it.name)}` : E(r.date || '');
+  return `<${withItem ? 'button' : 'div'} class="rec" ${withItem ? `data-go="${E(it.key)}"` : ''}><span class="io ${isIn ? 'in' : 'out'}">${isIn ? '입고' : '출고'}</span><div class="l"><div class="t">${head}</div><div class="s">${withItem ? E(it.code) + (bits.length ? ' · ' : '') : ''}${E(bits.join(' · '))}</div></div><div class="q num">${isIn ? '+' : '−'}${fmt(x.q)}${it.unit ? ` <small style="font-size:11px;color:var(--sub);font-weight:600">${E(it.unit)}</small>` : ''}</div></${withItem ? 'button' : 'div'}>`;
+}
+
+function renderChips() {
+  const c = $('chips'); let h = '';
+  const chip = (k, v, label, n, cls) => `<button class="chip ${cls || ''} ${ui[k] === v ? 'on' : ''}" data-chip="${k}:${v}">${label}${n != null ? `<i>${n}</i>` : ''}</button>`;
+  if (ui.tab === 'stock') {
+    const act = ITEMS.filter(i => !i.inactive);
+    h = chip('f', 'all', '전체', act.length) + chip('f', 'm', '원자재', act.filter(i => i.kind === 'm').length) + chip('f', 'c', '소모품', act.filter(i => i.kind === 'c').length)
+      + chip('f', 'low', '부족', act.filter(i => i.low).length, 'warn') + chip('f', 'soon', '기한 임박', act.filter(i => i.soon).length, 'exp') + chip('f', 'fav', '★ 즐겨찾기', FAV.size || null);
+  } else if (ui.tab === 'recent') {
+    h = chip('io', 'all', '전체') + chip('io', 'in', '입고') + chip('io', 'out', '출고');
+  }
+  c.innerHTML = h; c.classList.toggle('hide', !h);
+}
+
+function renderMain() {
+  const m = $('main'), q = ui.q.trim().toLowerCase();
+  $('hTitle').textContent = TITLES[ui.tab]; $('search').placeholder = PLACE[ui.tab];
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  renderChips();
+  if (!MIR) { m.innerHTML = '<div class="empty">데이터를 받는 중입니다…</div>'; return; }
+  if (ui.tab === 'stock') {
+    let L = ITEMS.filter(i => (q ? i.hay.includes(q) : !i.inactive));
+    if (ui.f === 'm' || ui.f === 'c') L = L.filter(i => i.kind === ui.f);
+    else if (ui.f === 'low') L = L.filter(i => i.low);
+    else if (ui.f === 'soon') L = L.filter(i => i.soon);
+    else if (ui.f === 'fav') L = L.filter(i => FAV.has(i.key));
+    if (!q && ui.f === 'all' && FAV.size) L = L.filter(i => FAV.has(i.key)).concat(L.filter(i => !FAV.has(i.key)));
+    m.innerHTML = L.length ? `<div class="list">${L.map(itemRow).join('')}</div>` : `<div class="empty">${ui.f === 'fav' && !q ? '품목 화면의 ☆ 를 누르면 여기에 모입니다.' : '해당하는 품목이 없습니다.'}</div>`;
+  } else if (ui.tab === 'recent') {
+    let L = FEED;
+    if (ui.io !== 'all') L = L.filter(x => x.io === ui.io);
+    if (q) L = L.filter(x => (x.it.code + ' ' + x.it.name + ' ' + (x.r.batch || '') + ' ' + (x.r.slipNo || '') + ' ' + (x.r.note || '') + ' ' + (x.r.vendor || '')).toLowerCase().includes(q));
+    const show = L.slice(0, ui.feedN); let h = '', day = null, open = false;
+    show.forEach(x => { const d = x.r.date || '날짜 없음'; if (d !== day) { if (open) h += '</div>'; h += `<div class="dayhead">${E(d)}${d === todayStr() ? ' · 오늘' : ''}</div><div class="list">`; open = true; day = d; } h += recRow(x, true); });
+    if (open) h += '</div>';
+    if (L.length > show.length) h += `<button class="more" data-more="feed">더 보기 (${L.length - show.length}건 남음)</button>`;
+    m.innerHTML = h || '<div class="empty">수불 내역이 없습니다.</div>';
+  } else {
+    const seen = new Set(); let L = [];
+    PARTNERS.forEach(p => { seen.add(p.id); L.push({ key: p.id, name: p.name, p, s: PSTAT.get(p.id) }); });
+    PSTAT.forEach(s => { if (!seen.has(s.key)) L.push({ key: s.key, name: s.name, p: null, s }); });
+    if (q) L = L.filter(x => (x.name + ' ' + ((x.p && ((x.p.aliases || []).join(' ') + ' ' + (x.p.contact || '') + ' ' + (x.p.memo || ''))) || '')).toLowerCase().includes(q));
+    L.sort((a, b) => ((b.p ? 1 : 0) - (a.p ? 1 : 0)) || a.name.localeCompare(b.name, 'ko'));
+    m.innerHTML = L.length ? `<div class="list">${L.map(x => {
+      const p = x.p, n = x.s ? x.s.items.size : 0;
+      const sub = p ? [p.contact, p.phone].filter(v => !blank(v)).join(' · ') || '연락처 미등록' : 'PC에 등록되지 않은 이름';
+      return `<button class="row" data-go="p/${E(encodeURIComponent(x.key))}"><div class="l"><div class="nm">${E(x.name)}${p && p.inactive ? ' <span class="tag">거래 중단</span>' : ''}</div><div class="sb">${E(sub)}</div></div><div class="r"><div class="sb">${n ? `품목 ${n}` : ''}</div>${x.s && x.s.last ? `<div class="sb num">${E(x.s.last)}</div>` : ''}</div></button>`;
+    }).join('')}</div>` : '<div class="empty">업체가 없습니다.</div>';
+  }
+}
+
+// ===== 상세 화면 =====
+const phonesOf = s => (String(s || '').match(/\+?\d[\d\-\s().]{6,}\d/g) || []).map(x => x.trim());
+function partnerCard(name, p, roles, last, linkKey) {
+  const ph = p ? phonesOf(p.phone) : [];
+  let h = `<div class="pt"><div class="n">${linkKey ? `<button data-go="p/${E(encodeURIComponent(linkKey))}" style="font-weight:700;color:var(--action)">${E(name)} ›</button>` : E(name)}${[...(roles || [])].map(r => `<span class="tag blue">${E(r)}</span>`).join('')}${p && p.inactive ? '<span class="tag">거래 중단</span>' : ''}</div>`;
+  if (p) {
+    const c = [p.contact, p.phone].filter(v => !blank(v)).join(' · ');
+    h += `<div class="c">${c ? E(c) : '<span style="color:var(--mute)">담당자 · 연락처 미등록</span>'}</div>`;
+    if (!blank(p.email)) h += `<div class="c">${E(p.email)}</div>`;
+    if (!blank(p.memo)) h += `<div class="m">${E(p.memo)}</div>`;
+    if (last) h += `<div class="m">최근 입고 ${E(last)}</div>`;
+    let a = '';
+    ph.forEach((n, i) => { const t = n.replace(/[^\d+]/g, ''); a += `<a class="act ${i === 0 ? 'pri' : ''}" href="tel:${E(t)}">전화${ph.length > 1 ? ' ' + (i + 1) : ''}</a>` + (i === 0 ? `<a class="act" href="sms:${E(t)}">문자</a>` : ''); });
+    if (!blank(p.email)) a += `<a class="act" href="mailto:${E(p.email)}">메일</a>`;
+    const cp = [p.name, p.contact, p.phone, p.email].filter(v => !blank(v)).join(' / ');
+    a += `<button class="act" data-copy="${E(cp)}">복사</button>`;
+    h += `<div class="acts">${a}</div>`;
+  } else {
+    h += `<div class="m">${last ? `최근 입고 ${E(last)} · ` : ''}PC WMS의 ‘거래처 · 제조처 관리’에 등록하면 담당자와 연락처가 여기에 나옵니다.</div>`;
+  }
+  return h + '</div>';
+}
+
+let cur = null;
+function itemDetail(it) {
+  const m = it.meta, u = it.unit ? ' ' + E(it.unit) : '';
+  const max = Math.max(it.stock, it.safety * 1.6, 1), pct = Math.min(100, it.stock / max * 100), sp = it.safety ? Math.min(100, it.safety / max * 100) : null;
+  let h = `<div class="hero"><h2>${E(it.name)}</h2><div class="meta">${E(it.code)} · ${E(it.cat)}${m.grade ? ' · ' + E(m.grade) : ''}${it.lots[0] && it.lots[0].storage ? ' · ' + E(it.lots[0].storage) + ' 보관' : ''}</div>
+    <div class="big"><b class="num">${fmt(it.stock)}</b><span>${E(it.unit)} ${it.kind === 'm' ? '가용재고' : '현재고'}</span></div>
+    ${it.safety ? `<div class="bar ${it.low ? 'low' : ''}"><div style="width:${pct}%"></div><em style="left:${sp}%"></em></div><div class="barcap"><span>안전재고 ${fmt(it.safety)}${u}</span><span>${it.low ? `${fmt(R3(it.safety - it.stock))}${u} 부족` : `${fmt(R3(it.stock - it.safety))}${u} 여유`}</span></div>` : ''}
+    <div class="tags">${it.low ? '<span class="tag red">안전재고 미달</span>' : ''}${it.soon ? `<span class="tag amber">${E(it.soonTxt)}</span>` : ''}${it.expired > 0 ? `<span class="tag red">기한 지난 재고 ${fmt(it.expired)}${u}</span>` : ''}${it.inactive ? `<span class="tag">미사용${m.inactiveReason ? ' · ' + E(m.inactiveReason) : ''}</span>` : ''}</div></div>`;
+
+  // 발주 · 리드타임
+  const kv = [];
+  if (!blank(m.leadTime)) kv.push(['리드타임', m.leadTime]);
+  if (it.kind === 'm') {
+    if (num(m.orderPendingQty) > 0) kv.push(['발주 진행 수량', fmt(m.orderPendingQty) + (it.unit ? ' ' + it.unit : '')]);
+    if (num(m.orderPendingQty) > 0 && !blank(m.orderStatus)) kv.push(['발주 상태', m.orderStatus]);
+    if (!blank(m.pendingEta)) kv.push(['입고 예정', m.pendingEta]);
+    if (!blank(m.orderNote)) kv.push(['발주 메모', m.orderNote]);
+    if (it.cat === '주성분' && m.potency != null) kv.push(['역가', m.potency + ' %']);
+  } else {
+    if (num(m.orderQty) > 0) kv.push(['발주 수량', fmt(m.orderQty) + (it.unit ? ' ' + it.unit : '')]);
+    if (!blank(m.orderDate)) kv.push(['발주일', m.orderDate]);
+    if (!blank(m.orderEta)) kv.push(['입고 예정', m.orderEta]);
+    if (!blank(m.note)) kv.push(['메모', m.note]);
+  }
+  if (kv.length) h += `<h3>발주 · 관리 정보</h3><div class="list">${kv.map(([k, v]) => `<div class="kv"><span>${E(k)}</span><span>${E(v)}</span></div>`).join('')}</div>`;
+
+  // LOT별 재고
+  if (it.kind === 'm') {
+    h += `<h3>LOT별 재고 (기한 빠른 순)</h3>`;
+    h += it.lots.length ? `<div class="list">${it.lots.map(x => {
+      const ts = x.testStatus || '적합', tc = ts === '적합' ? 'green' : ts === '부적합' ? 'red' : 'amber';
+      const ec = x.isExpired ? 'red' : (x.dd != null && x.dd <= SOON_DAYS) ? 'amber' : '';
+      return `<div class="lot"><div class="a"><b>${E(x.batch)}</b><span class="q num">${fmt(x.remaining)}${u}</span></div><div class="b"><span class="tag ${tc}">${E(ts)}</span>${blank(x.expiryDate) ? '<span>기한 없음</span>' : `<span>기한 ${E(x.expiryDate)}</span><span class="tag ${ec}">${E(ddayTxt(x.dd))}</span>`}<span>${E(x.slipNo)}</span></div></div>`;
+    }).join('')}</div>` : '<div class="hint">남아 있는 LOT이 없습니다.</div>';
+  }
+
+  // 업체
+  const V = new Map();
+  if (it.kind === 'm') {
+    const add = (nm, role, date) => { nm = String(nm || '').trim(); if (skipName(nm)) return; const p = findPartner(nm), key = p ? p.id : 'raw:' + nm; let v = V.get(key); if (!v) V.set(key, v = { key, name: p ? p.name : nm, p, roles: new Set(), last: '' }); v.roles.add(role); if (String(date || '') > v.last) v.last = String(date || ''); };
+    it.recs.forEach(r => { if (inQ(r) > 0) { add(r.vendor, '거래처', r.date); add(r.mfg, '제조처', r.date); } });
+    if (!V.size && !blank(m.mfg)) add(m.mfg, '제조처', '');
+  }
+  const VL = [...V.values()].sort((a, b) => b.last.localeCompare(a.last));
+  h += `<h3>업체 · 담당자</h3>`;
+  h += VL.length ? `<div class="list">${VL.map(v => partnerCard(v.name, v.p, v.roles, v.last, v.key)).join('')}</div>`
+    : `<div class="hint">${it.kind === 'c' ? '소모품 수불에는 거래처 칸이 없어 업체가 연결되지 않습니다. 아래 ‘업체’ 탭에서 찾아보세요.' : '입고 기록에 적힌 거래처가 없습니다.'}</div>`;
+
+  // 최근 수불
+  const rows = [];
+  for (let i = it.recs.length - 1; i >= 0; i--) { const r = it.recs[i];
+    if (it.kind === 'm') { if (num(r.outcome) > 0) rows.push({ it, r, io: 'out', q: num(r.outcome) }); if (inQ(r) > 0) rows.push({ it, r, io: 'in', q: inQ(r) }); }
+    else rows.push({ it, r, io: r.type === 'IN' ? 'in' : 'out', q: num(r.qty) }); }
+  h += `<h3>최근 수불 내역 (${rows.length}건)</h3>`;
+  h += rows.length ? `<div class="list">${rows.slice(0, ui.recN).map(x => recRow(x, false)).join('')}</div>${rows.length > ui.recN ? `<button class="more" data-more="rec">더 보기 (${rows.length - ui.recN}건 남음)</button>` : ''}` : '<div class="hint">수불 기록이 없습니다.</div>';
+  return h;
+}
+
+function partnerDetail(key) {
+  const p = PARTNERS.find(x => x.id === key) || null, s = PSTAT.get(key);
+  const name = p ? p.name : s ? s.name : key.replace(/^raw:/, '');
+  let h = `<div class="list" style="border-top:0">${partnerCard(name, p, s ? s.roles : (p && p.roles) || [], s ? s.last : '', null)}</div>`;
+  if (p && (p.aliases || []).length) h += `<div class="hint">다른 표기: ${E(p.aliases.join(', '))}</div>`;
+  const its = s ? [...s.items.entries()].sort((a, b) => b[1].localeCompare(a[1])) : [];
+  h += `<h3>취급 품목 (${its.length})</h3>`;
+  h += its.length ? `<div class="list">${its.map(([k]) => BYKEY.get(k)).filter(Boolean).map(itemRow).join('')}</div>` : '<div class="hint">이 업체로 입고된 기록이 없습니다.</div>';
+  return { name, h };
+}
+
+function shareText(it) {
+  const u = it.unit ? ' ' + it.unit : '', d = new Date(MIR.syncAt || Date.now());
+  let t = `[${it.code}] ${it.name}\n${it.kind === 'm' ? '가용재고' : '현재고'} ${fmt(it.stock)}${u}` + (it.safety ? ` (안전재고 ${fmt(it.safety)}${u})` : '');
+  it.lots.slice(0, 8).forEach(x => { t += `\n· LOT ${x.batch} ${fmt(x.remaining)}${u}` + (blank(x.expiryDate) ? '' : ` / 기한 ${x.expiryDate}`) + (x.testStatus && x.testStatus !== '적합' ? ` / ${x.testStatus}` : ''); });
+  return t + `\n(WMS ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 기준)`;
+}
+
+function route() {
+  let hsh = location.hash.slice(1); try { hsh = decodeURIComponent(hsh); } catch (e) {}
+  const sh = $('sheet');
+  if (!hsh || !MIR) { sh.classList.remove('open'); cur = null; return; }
+  const kind = hsh[0], body = $('sheetBody'), keep = cur && cur.hash === hsh ? body.scrollTop : 0;
+  if (!(cur && cur.hash === hsh)) ui.recN = 15;
+  if (kind === 'p') {
+    const d = partnerDetail(hsh.slice(2));
+    $('sheetTitle').textContent = d.name; body.innerHTML = d.h; $('btnFav').classList.add('hide'); $('btnShare').classList.add('hide'); cur = { hash: hsh };
+  } else {
+    const it = BYKEY.get(hsh);
+    if (!it) { history.replaceState(null, '', location.pathname + location.search); sh.classList.remove('open'); cur = null; return; }
+    $('sheetTitle').textContent = it.code; body.innerHTML = itemDetail(it);
+    $('btnFav').classList.remove('hide'); $('btnShare').classList.remove('hide'); $('btnFav').textContent = FAV.has(it.key) ? '★' : '☆'; cur = { hash: hsh, it };
+  }
+  body.scrollTop = keep; sh.classList.add('open');
+}
+let depth = 0;
+const go = key => { depth++; location.hash = '#' + encodeURIComponent(key).replace(/%2F/g, '/'); };
+window.addEventListener('hashchange', route);
+
+// ===== 동기화 버튼 · 상태 표시 =====
+function paintSync(msg) {
+  const l = $('syncLbl');
+  if (msg) { l.textContent = msg; return; }
+  if (!MIR || !MIR.syncAt) { l.textContent = ''; return; }
+  const d = new Date(MIR.syncAt), same = d.toDateString() === new Date().toDateString();
+  l.textContent = `${same ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' '}${pad(d.getHours())}:${pad(d.getMinutes())} 기준`;
+}
+async function runSync(forceFull, quiet) {
+  if (syncing) return; syncing = true;
+  $('syncIco').classList.add('spin'); paintSync('받는 중…');
+  const first = !MIR || forceFull;
+  if (first) {
+    $('main').innerHTML = '<div id="prog"><b>서버에서 재고 데이터를 받는 중</b><span id="progTxt">처음 한 번만 전체를 받습니다. 잠시만 기다려 주세요.</span></div>';
+    const st = {}; progCb = (name, done, total) => { st[name] = [done, total]; const a = st.items || [0, 0], b = st.consumables || [0, 0]; const el = $('progTxt'); if (el) el.textContent = `품목 ${a[0] + b[0]} / ${a[1] + b[1]}`; };
+  }
+  try {
+    await syncNow(forceFull); derive(); renderMain(); route();
+    if (!quiet) toast('최신 데이터로 맞췄습니다');
+  } catch (e) {
+    console.error(e);
+    const off = !navigator.onLine;
+    toast(off ? '인터넷 연결이 없어 저장된 데이터를 보여줍니다' : '동기화 실패: ' + (e && e.message ? e.message : e));
+    if (first && !MIR) $('main').innerHTML = `<div class="empty">데이터를 받지 못했습니다.<br>${E(e && e.message ? e.message : '')}<br><br><button class="act" id="retry">다시 시도</button></div>`;
+    else renderMain();
+  } finally { progCb = null; syncing = false; $('syncIco').classList.remove('spin'); paintSync(); }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && auth.currentUser && MIR && Date.now() - (MIR.syncAt || 0) > AUTO_SYNC_MS) runSync(false, true); });
+
+// ===== 이벤트 =====
+let sT; $('search').addEventListener('input', e => { clearTimeout(sT); sT = setTimeout(() => { ui.q = e.target.value; ui.feedN = 60; renderMain(); $('main').scrollTop = 0; }, 120); });
+document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; ui.tab = b.dataset.tab; ui.q = ''; $('search').value = ''; ui.feedN = 60; renderMain(); $('main').scrollTop = 0; });
+$('chips').addEventListener('click', e => { const b = e.target.closest('[data-chip]'); if (!b) return; const [k, v] = b.dataset.chip.split(':'); ui[k] = v; ui.feedN = 60; renderMain(); $('main').scrollTop = 0; });
+document.addEventListener('click', async e => {
+  const t = e.target;
+  if (t.id === 'retry') { runSync(false); return; }
+  const g = t.closest('[data-go]'); if (g) { go(g.dataset.go.startsWith('p/') ? 'p/' + decodeURIComponent(g.dataset.go.slice(2)) : g.dataset.go); return; }
+  const mo = t.closest('[data-more]'); if (mo) { if (mo.dataset.more === 'feed') { ui.feedN += 100; renderMain(); } else { ui.recN += 40; route(); } return; }
+  const cp = t.closest('[data-copy]'); if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copy); toast('복사했습니다'); } catch (er) { toast('복사하지 못했습니다'); } return; }
+});
+$('btnBack').addEventListener('click', () => { if (depth > 0) { depth--; history.back(); } else location.hash = ''; });
+window.addEventListener('popstate', () => { if (!location.hash) depth = 0; });
+$('btnFav').addEventListener('click', () => { if (!cur || !cur.it) return; const k = cur.it.key; FAV.has(k) ? FAV.delete(k) : FAV.add(k); saveFav(); $('btnFav').textContent = FAV.has(k) ? '★' : '☆'; toast(FAV.has(k) ? '즐겨찾기에 넣었습니다' : '즐겨찾기에서 뺐습니다'); renderMain(); });
+$('btnShare').addEventListener('click', async () => { if (!cur || !cur.it) return; const text = shareText(cur.it); try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); toast('재고 현황을 복사했습니다'); } } catch (er) {} });
+$('btnSync').addEventListener('click', () => runSync(false));
+$('btnMenu').addEventListener('click', () => { $('menuWho').textContent = (auth.currentUser && auth.currentUser.email || '') + (MIR && MIR.by ? ` · PC 마지막 저장: ${MIR.by}` : ''); $('menu').classList.remove('hide'); });
+$('menu').addEventListener('click', async e => {
+  const b = e.target.closest('[data-m]'); $('menu').classList.add('hide'); if (!b) return;
+  if (b.dataset.m === 'full') { if (confirm('서버의 모든 수불 기록을 다시 받습니다.\n무료 요금제의 하루 읽기 한도를 기록 수만큼 쓰니 꼭 필요할 때만 진행하세요.')) runSync(true); }
+  if (b.dataset.m === 'logout') { if (confirm('로그아웃할까요? 이 휴대폰에 저장된 재고 사본도 지웁니다.')) { await idbDel(IDB_KEY); MIR = null; location.hash = ''; await signOut(auth); } }
+});
+
+// ===== 로그인 =====
+try { $('lgId').value = localStorage.getItem('wmsm_email') || ''; } catch (e) {}
+async function doLogin() {
+  const id = $('lgId').value.trim(), pw = $('lgPw').value, er = $('loginErr'); er.textContent = '';
+  if (!id || !pw) { er.textContent = '이메일과 비밀번호를 모두 입력해 주세요.'; return; }
+  $('lgBtn').disabled = true; $('lgBtn').textContent = '확인 중…';
+  try { await signInWithEmailAndPassword(auth, id, pw); try { localStorage.setItem('wmsm_email', id); } catch (e) {} $('lgPw').value = ''; }
+  catch (e) {
+    const c = e && e.code;
+    er.textContent = (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-email') ? '이메일 또는 비밀번호가 맞지 않습니다.'
+      : c === 'auth/too-many-requests' ? '시도가 너무 많습니다. 잠시 후 다시 해 주세요.' : c === 'auth/network-request-failed' ? '네트워크 연결을 확인해 주세요.' : '로그인하지 못했습니다. ' + (e && e.message || '');
+  } finally { $('lgBtn').disabled = false; $('lgBtn').textContent = '로그인'; }
+}
+$('lgBtn').addEventListener('click', doLogin);
+$('lgPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+onAuthStateChanged(auth, async user => {
+  $('login').classList.toggle('hide', !!user); $('app').classList.toggle('hide', !user);
+  if (!user) { $('sheet').classList.remove('open'); return; }
+  const c = await idbGet(IDB_KEY);
+  if (c && c.v === CACHE_VER && c.appId === appId) { MIR = c; derive(); renderMain(); paintSync(); route(); }
+  else renderMain();
+  if (!MIR || Date.now() - (MIR.syncAt || 0) > AUTO_SYNC_MS) runSync(false, true);
+});
+</script>
+</body>
+</html>
